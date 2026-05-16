@@ -516,7 +516,16 @@ fn history_tool_title(tool: &HistoryReplayToolAction) -> Option<String> {
     non_empty(tool.title.as_deref())
         .or_else(|| non_empty(tool.input_summary.as_deref()))
         .map(ToString::to_string)
-        .or_else(|| tool.kind.as_ref().map(action_kind_title))
+        .or_else(|| {
+            // Only fall back to kind title for input-phase actions (no output yet).
+            // Output-only entries share a callId with their input entry; using the
+            // kind fallback here would overwrite the input entry's real title on merge.
+            if tool.output.is_empty() {
+                tool.kind.as_ref().map(action_kind_title)
+            } else {
+                None
+            }
+        })
 }
 
 fn non_empty(value: Option<&str>) -> Option<&str> {

@@ -1094,7 +1094,7 @@ fn kimi_local_plan_entry(context_path: &Path, state: &Value) -> Option<HistoryRe
     }
     let share_dir = kimi_share_dir_from_context_path(context_path)?;
     let path = share_dir.join("plans").join(format!("{slug}.md"));
-    let text = fs::read_to_string(&path).ok()?;
+    let text = fs::read_to_string(&path).ok()?.replace("\r\n", "\n");
     if text.trim().is_empty() {
         return None;
     }
@@ -1649,7 +1649,7 @@ mod tests {
     #[test]
     fn kimi_local_state_projects_plan_mode_and_plan_card() {
         let context_path = fixture_context_path();
-        let plan_path = fixture_path("share/plans/fixture-plan.md");
+        let plan_path = fixture_path("share").join("plans").join("fixture-plan.md");
 
         let state = kimi_session_state(&context_path).expect("state");
         let event = kimi_local_mode_event(&ConversationId::new("conv"), &state).expect("mode");
