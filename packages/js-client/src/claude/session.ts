@@ -109,6 +109,7 @@ type NativeEngineClient = InstanceType<typeof AngelEngineClient>;
 export class ClaudeCodeSession {
   private readonly adapter = new ClaudeCodeEngineAdapter();
   private readonly client: NativeEngineClient;
+  private readonly pathToClaudeCodeExecutable?: string;
   private readonly pendingPermissions = new Map<string, PendingPermission>();
   private activeQuery?: Query;
   private availableEfforts: SessionConfigValueJson[] = [];
@@ -122,7 +123,8 @@ export class ClaudeCodeSession {
   private runtimeConfigurationLoaded = false;
   private replayedSessionId?: string;
 
-  constructor() {
+  constructor(options?: { pathToClaudeCodeExecutable?: string }) {
+    this.pathToClaudeCodeExecutable = options?.pathToClaudeCodeExecutable;
     this.client = new AngelEngineClient(
       {
         auth: { autoAuthenticate: false, needAuth: false },
@@ -295,6 +297,7 @@ export class ClaudeCodeSession {
       ),
       includePartialMessages: true,
       model: request.model ?? this.currentModel,
+      pathToClaudeCodeExecutable: this.pathToClaudeCodeExecutable,
       permissionMode: normalizeClaudeMode(
         request.permissionMode ?? this.currentPermissionMode,
       ),
@@ -768,7 +771,9 @@ export class ClaudeCodeSession {
 
   private initialConversationEvents(conversationId: string): EngineEventJson[] {
     return compactEvents([
-      this.sessionPermissionModesUpdated(conversationId),
+      this.availablePermissionModes.length > 0
+        ? this.sessionPermissionModesUpdated(conversationId)
+        : undefined,
       this.reasoningConfigUpdated(conversationId),
     ]);
   }
@@ -780,6 +785,7 @@ export class ClaudeCodeSession {
       prompt: emptyClaudePrompt(),
       options: {
         cwd,
+        pathToClaudeCodeExecutable: this.pathToClaudeCodeExecutable,
         permissionMode: normalizeClaudeMode(this.currentPermissionMode),
       },
     });

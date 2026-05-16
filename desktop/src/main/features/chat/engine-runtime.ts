@@ -304,7 +304,17 @@ function getChatSession(chat: Chat) {
 
 function createChatSession(runtime?: string): DesktopChatSession {
   if (runtime === "claude") {
-    return new ClaudeCodeSession();
+    const claudeExecutablePath = app.isPackaged
+      ? path.join(
+          process.resourcesPath,
+          process.platform === "win32" ? "claude.exe" : "claude",
+        )
+      : undefined;
+    return new ClaudeCodeSession(
+      claudeExecutablePath
+        ? { pathToClaudeCodeExecutable: claudeExecutablePath }
+        : undefined,
+    );
   }
 
   return new DesktopAngelSession(

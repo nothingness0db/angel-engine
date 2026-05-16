@@ -1,6 +1,5 @@
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import fs from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerDMG } from "@electron-forge/maker-dmg";
@@ -16,9 +15,6 @@ const nativeRuntimeModules = ["better-sqlite3", "bindings", "file-uri-to-path"];
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "..");
-const workspaceRequire = createRequire(
-  path.join(workspaceRoot, "package.json"),
-);
 const appIconPath = path.join(projectRoot, "assets", "icon");
 
 function copyRuntimePath(buildPath: string, relativePath: string) {
@@ -33,21 +29,51 @@ function copyRuntimePath(buildPath: string, relativePath: string) {
   );
 }
 
-function copyRuntimeModule(buildPath: string, moduleName: string) {
-  const packageJsonPath = workspaceRequire.resolve(
-    `${moduleName}/package.json`,
-    {
-      paths: [projectRoot, workspaceRoot],
-    },
-  );
-  const sourcePath = path.dirname(packageJsonPath);
-  const targetPath = path.join(buildPath, "node_modules", moduleName);
+function findModulePath(moduleName: string): string | undefined {
+  for (const root of [projectRoot, workspaceRoot]) {
+    const candidate = path.join(root, "node_modules", moduleName);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return undefined;
+}
 
+function getClaudeBinaryPath(): string | undefined {
+  const platformArch = `${process.platform}-${process.arch}`;
+  const packageName = `@anthropic-ai/claude-agent-sdk-${platformArch}`;
+  const binaryName = process.platform === "win32" ? "claude.exe" : "claude";
+  const packagePath = findModulePath(packageName);
+  if (!packagePath) return undefined;
+  const binaryPath = path.join(packagePath, binaryName);
+  return fs.existsSync(binaryPath) ? binaryPath : undefined;
+}
+
+function copyRuntimeModule(
+  buildPath: string,
+  moduleName: string,
+  visited = new Set<string>(),
+) {
+  if (visited.has(moduleName)) return;
+  visited.add(moduleName);
+
+  const sourcePath = findModulePath(moduleName);
+  if (!sourcePath) {
+    throw new Error(`Cannot find module ${moduleName} in node_modules`);
+  }
+  const targetPath = path.join(buildPath, "node_modules", moduleName);
   fs.cpSync(sourcePath, targetPath, {
     dereference: true,
     force: true,
     recursive: true,
   });
+
+  // Recursively copy all runtime dependencies
+  const pkgJsonPath = path.join(sourcePath, "package.json");
+  if (fs.existsSync(pkgJsonPath)) {
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+    for (const dep of Object.keys(pkg.dependencies ?? {})) {
+      copyRuntimeModule(buildPath, dep, visited);
+    }
+  }
 }
 
 function copyNativeRuntimeDependencies(buildPath: string) {
@@ -89,10 +115,16 @@ const config: ForgeConfig = {
     packageAfterCopy: async (_config, buildPath) => {
       copyRuntimePath(buildPath, "drizzle");
       copyNativeRuntimeDependencies(buildPath);
+      copyRuntimeModule(buildPath, "@angel-engine/js-client");
+      copyRuntimeModule(buildPath, "@anthropic-ai/claude-agent-sdk");
     },
   },
   packagerConfig: {
     asar: true,
+    extraResource: ((): string[] => {
+      const binary = getClaudeBinaryPath();
+      return binary ? [binary] : [];
+    })(),
     icon: appIconPath,
   },
   rebuildConfig: {},
