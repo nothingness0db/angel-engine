@@ -121,6 +121,7 @@ const config: ForgeConfig = {
   },
   packagerConfig: {
     asar: true,
+    executableName: "angel-engine",
     extraResource: ((): string[] => {
       const binary = getClaudeBinaryPath();
       return binary ? [binary] : [];
