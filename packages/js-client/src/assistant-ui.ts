@@ -158,7 +158,8 @@ export function assistantMessageContentToHistoryParts(
           return [{ data: part.data, name: "elicitation", type: "data" }];
         }
         return [];
-      default:
+      case "audio":
+      case "source":
         return [];
     }
   });

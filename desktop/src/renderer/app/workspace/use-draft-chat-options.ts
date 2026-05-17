@@ -13,6 +13,7 @@ import {
   runtimeConfigOptionsToAgentOptions,
   selectedConfigOverride,
 } from "@/app/workspace/chat-runtime-options";
+import { draftAgentConfigKey } from "@/app/workspace/workspace-runtime-keys";
 import { EMPTY_DRAFT_AGENT_CONFIG } from "@/app/workspace/workspace-thread-types";
 
 type DraftRuntimeOptions = Array<{
@@ -50,28 +51,33 @@ export function useDraftChatOptions({
   setDraftRuntimes,
 }: UseDraftChatOptionsInput) {
   const { t } = useTranslation();
-  const draftAgentConfigKey = `${runtimePageKey}:${activeRuntime}`;
+  const draftAgentConfigKeyValue = draftAgentConfigKey(
+    runtimePageKey,
+    activeRuntime,
+  );
   const draftAgentConfig =
-    draftAgentConfigs[draftAgentConfigKey] ?? EMPTY_DRAFT_AGENT_CONFIG;
+    draftAgentConfigs[draftAgentConfigKeyValue] ?? EMPTY_DRAFT_AGENT_CONFIG;
   const runtimePreference = agentSettings.runtimePreferences[activeRuntime];
+  const explicitRuntimePreference =
+    runtimePreference?.explicit === true ? runtimePreference : undefined;
   const savedModelSelection = resolveSavedConfigSelection({
     canSet: runtimeConfig?.canSetModel,
     currentValue: runtimeConfig?.currentModel,
     options: runtimeConfig?.models,
-    savedValue: runtimePreference?.model,
+    savedValue: explicitRuntimePreference?.model,
   });
   const savedReasoningSelection = resolveSavedConfigSelection({
     canSet: runtimeConfig?.canSetReasoningEffort,
     currentValue: runtimeConfig?.currentReasoningEffort,
     options: runtimeConfig?.reasoningEfforts,
-    savedValue: runtimePreference?.reasoningEffort,
+    savedValue: explicitRuntimePreference?.reasoningEffort,
   });
   const savedModeSelection = resolveSavedConfigSelection({
     canSet: runtimeConfig?.canSetMode,
     currentValue:
       runtimeConfig?.agentState?.currentMode ?? runtimeConfig?.currentMode,
     options: runtimeConfig?.modes,
-    savedValue: runtimePreference?.mode,
+    savedValue: explicitRuntimePreference?.mode,
   });
   const savedPermissionModeSelection = resolveSavedConfigSelection({
     canSet: runtimeConfig?.canSetPermissionMode,
@@ -79,7 +85,7 @@ export function useDraftChatOptions({
       runtimeConfig?.agentState?.currentPermissionMode ??
       runtimeConfig?.currentPermissionMode,
     options: runtimeConfig?.permissionModes,
-    savedValue: runtimePreference?.permissionMode,
+    savedValue: explicitRuntimePreference?.permissionMode,
   });
   const activeModel = normalizeConfigDisplayValue(
     draftAgentConfig.model ??
@@ -169,7 +175,7 @@ export function useDraftChatOptions({
   const canSetReasoningEffort = runtimeConfig?.canSetReasoningEffort ?? true;
   const setDraftAgentRuntime = useCallback(
     (runtime: AgentRuntime) => {
-      if (!draftRuntimeKey) return;
+      if (draftRuntimeKey === undefined) return;
       if (!agentSettings.enabledRuntimes.includes(runtime)) return;
       setDraftRuntimes((current) => ({
         ...current,
@@ -182,13 +188,13 @@ export function useDraftChatOptions({
     (field: keyof DraftAgentConfig, value: string) => {
       setDraftAgentConfigs((current) => ({
         ...current,
-        [draftAgentConfigKey]: {
-          ...current[draftAgentConfigKey],
+        [draftAgentConfigKeyValue]: {
+          ...current[draftAgentConfigKeyValue],
           [field]: normalizeConfigDisplayValue(value),
         },
       }));
     },
-    [draftAgentConfigKey, setDraftAgentConfigs],
+    [draftAgentConfigKeyValue, setDraftAgentConfigs],
   );
   const setAgentModel = useCallback(
     (model: string) => {

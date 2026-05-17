@@ -9,12 +9,11 @@ import type {
   DraftAgentConfig,
 } from "@/app/workspace/workspace-thread-types";
 import type { useApi } from "@/platform/use-api";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { RiErrorWarningLine as AlertCircle } from "@remixicon/react";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Component, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Redirect } from "wouter";
-import i18n from "@/i18n";
 import {
   ensureConfigOption,
   normalizeConfigDisplayValue,
@@ -42,6 +41,7 @@ import {
   useChatRunMessages,
   useChatRunStore,
 } from "@/features/chat/state/chat-run-store";
+import i18n from "@/i18n";
 
 interface ActiveChatThreadProps {
   draftAgentConfig: DraftAgentConfig;
@@ -247,7 +247,7 @@ function ChatThreadRuntime({
   const setBackendMode = useCallback(
     async (mode: string) => {
       const modeOverride = selectedConfigOverride(mode);
-      if (!modeOverride) return;
+      if (modeOverride === undefined) return;
       await setRunMode(slotKey, modeOverride);
     },
     [setRunMode, slotKey],
@@ -255,7 +255,7 @@ function ChatThreadRuntime({
   const setBackendPermissionMode = useCallback(
     async (mode: string) => {
       const modeOverride = selectedConfigOverride(mode);
-      if (!modeOverride) return;
+      if (modeOverride === undefined) return;
       await setRunPermissionMode(slotKey, modeOverride);
     },
     [setRunPermissionMode, slotKey],
@@ -413,7 +413,12 @@ export class ChatRestoreErrorBoundary extends Component<
   render(): ReactNode {
     if (this.state.failed) {
       return (
-        <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background p-4">
+        <div
+          className="
+            flex h-full min-h-0 flex-1 items-center justify-center bg-background
+            p-4
+          "
+        >
           <div
             className="
               flex max-w-xl items-start gap-3 rounded-lg border
@@ -423,12 +428,22 @@ export class ChatRestoreErrorBoundary extends Component<
             "
             role="alert"
           >
-            <AlertCircle className="mt-0.5 size-4 shrink-0 text-rose-600 dark:text-rose-300" />
+            <AlertCircle
+              className="
+                mt-0.5 size-4 shrink-0 text-rose-600
+                dark:text-rose-300
+              "
+            />
             <div className="min-w-0">
               <div className="font-medium">
                 {i18n.t("notifications.chatActionFailed")}
               </div>
-              <div className="mt-1 whitespace-pre-wrap text-[13px]/5 text-rose-900/90 dark:text-rose-100/85">
+              <div
+                className="
+                  mt-1 text-[13px]/5 whitespace-pre-wrap text-rose-900/90
+                  dark:text-rose-100/85
+                "
+              >
                 {getErrorMessage(this.state.error)}
               </div>
             </div>
@@ -447,15 +462,20 @@ function chatProjectContext(
   projects: Project[],
 ): ChatProjectContext {
   const projectId = routeProjectId ?? chat.projectId ?? undefined;
-  const project = projectId
-    ? projects.find((item) => item.id === projectId)
-    : undefined;
+  const project =
+    projectId !== undefined
+      ? projects.find((item) => item.id === projectId)
+      : undefined;
   const path =
-    project?.path ?? (projectId ? (chat.cwd ?? undefined) : undefined);
+    project?.path ??
+    (projectId !== undefined ? (chat.cwd ?? undefined) : undefined);
 
   return {
     id: projectId,
-    name: path ? getProjectDisplayName(path) : undefined,
+    name:
+      path !== undefined && path.length > 0
+        ? getProjectDisplayName(path)
+        : undefined,
     path,
     project,
   };

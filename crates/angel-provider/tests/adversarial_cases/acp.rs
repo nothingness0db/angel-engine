@@ -762,6 +762,118 @@ fn acp_neutral_update_context_uses_config_option_when_available() {
 }
 
 #[test]
+fn acp_model_config_write_prefers_exact_model_option_over_model_category() {
+    let adapter = AcpAdapter::standard();
+    let mut engine = acp_engine(&adapter);
+    let conversation_id = insert_ready_conversation(
+        &mut engine,
+        "conv",
+        RemoteConversationId::Known("sess".to_string()),
+        adapter.capabilities(),
+    );
+    engine
+        .conversations
+        .get_mut(&conversation_id)
+        .unwrap()
+        .config_options
+        .extend([
+            SessionConfigOption {
+                id: "provider".to_string(),
+                name: "Provider".to_string(),
+                description: None,
+                category: Some("model".to_string()),
+                current_value: "openai-codex".to_string(),
+                values: Vec::new(),
+            },
+            SessionConfigOption {
+                id: "model".to_string(),
+                name: "Model".to_string(),
+                description: None,
+                category: Some("model".to_string()),
+                current_value: "gpt-5.4".to_string(),
+                values: Vec::new(),
+            },
+        ]);
+    let effect = ProtocolEffect::new(ProtocolFlavor::Acp, ProtocolMethod::UpdateContext)
+        .request_id(JsonRpcRequestId::new("ctx"))
+        .conversation_id(conversation_id)
+        .field("contextUpdate", "model")
+        .field("model", "gpt-5.3-codex");
+
+    let (_, method, params) = encode_request(&adapter, &engine, &effect);
+
+    assert_eq!(method, "session/set_config_option");
+    assert_eq!(params["sessionId"], json!("sess"));
+    assert_eq!(params["configId"], json!("model"));
+    assert_eq!(params["value"], json!("gpt-5.3-codex"));
+}
+
+#[test]
+fn acp_provider_config_option_does_not_pollute_model_settings() {
+    let adapter = AcpAdapter::standard();
+    let mut engine = acp_engine(&adapter);
+    let plan = engine
+        .plan_command(EngineCommand::StartConversation {
+            params: StartConversationParams {
+                cwd: Some("/repo".to_string()),
+                additional_directories: Vec::new(),
+                context: ContextPatch::empty(),
+            },
+        })
+        .expect("start conversation");
+    let conversation_id = plan.conversation_id.clone().unwrap();
+    let request_id = plan.request_id.clone().unwrap();
+
+    decode_and_apply(
+        &adapter,
+        &mut engine,
+        JsonRpcMessage::response(
+            request_id,
+            json!({
+                "sessionId": "sess",
+                "configOptions": [
+                    {
+                        "id": "provider",
+                        "name": "Provider",
+                        "category": "model",
+                        "currentValue": "openai-codex",
+                        "options": [{"value": "openai-codex", "name": "OpenAI"}]
+                    },
+                    {
+                        "id": "model",
+                        "name": "Model",
+                        "category": "model",
+                        "currentValue": "gpt-5.4",
+                        "options": [{"value": "gpt-5.4", "name": "GPT-5.4"}]
+                    }
+                ]
+            }),
+        ),
+    );
+
+    let conversation = &engine.conversations[&conversation_id];
+    assert_eq!(
+        conversation
+            .config_options
+            .iter()
+            .find(|option| option.id == "provider")
+            .and_then(|option| option.category.as_deref()),
+        Some("provider")
+    );
+    let settings = engine
+        .conversation_settings(conversation_id.clone())
+        .expect("conversation settings");
+    assert_eq!(
+        settings.model_list.current_model_id.as_deref(),
+        Some("gpt-5.4")
+    );
+    assert_eq!(
+        settings.model_list.config_option_id.as_deref(),
+        Some("model")
+    );
+}
+
+#[test]
 fn acp_neutral_update_context_without_supported_write_completes_locally() {
     let adapter = AcpAdapter::standard();
     let mut engine = acp_engine(&adapter);

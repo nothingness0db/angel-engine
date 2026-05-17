@@ -66,6 +66,8 @@ export function permissionDecision(
       return EngineEventElicitationDecision.Allow;
     case "allowForSession":
       return EngineEventElicitationDecision.AllowForSession;
+    case "deny":
+      return EngineEventElicitationDecision.Deny;
     case "answers":
       return {
         [EngineEventElicitationDecision.Answers]: response.answers.map(
@@ -77,9 +79,22 @@ export function permissionDecision(
       };
     case "cancel":
       return EngineEventElicitationDecision.Cancel;
+    case "dynamicToolResult":
+      return {
+        [EngineEventElicitationDecision.DynamicToolResult]: {
+          success: response.success,
+        },
+      };
+    case "externalComplete":
+      return EngineEventElicitationDecision.ExternalComplete;
+    case "raw":
+      return {
+        [EngineEventElicitationDecision.Raw]: response.value,
+      };
     default:
+      const exhaustive: never = response;
       throw new Error(
-        `Unknown Claude elicitation response type: ${response.type}`,
+        `Unknown Claude elicitation response: ${JSON.stringify(exhaustive)}`,
       );
   }
 }

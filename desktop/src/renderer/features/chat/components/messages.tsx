@@ -233,6 +233,7 @@ export function UserEditComposer() {
 
 export function AssistantMessage() {
   const { t } = useTranslation();
+  const canReload = useAuiState((state) => state.thread.capabilities.reload);
 
   return (
     <MessagePrimitive.Root
@@ -276,10 +277,12 @@ export function AssistantMessage() {
               />
               <span className="sr-only">{t("common.copy")}</span>
             </ActionBarPrimitive.Copy>
-            <ActionBarPrimitive.Reload className={iconButtonClass}>
-              <RefreshCw className="size-3.5" />
-              <span className="sr-only">{t("common.reload")}</span>
-            </ActionBarPrimitive.Reload>
+            {canReload ? (
+              <ActionBarPrimitive.Reload className={iconButtonClass}>
+                <RefreshCw className="size-3.5" />
+                <span className="sr-only">{t("common.reload")}</span>
+              </ActionBarPrimitive.Reload>
+            ) : null}
             <AuiIf condition={(state) => !state.message.speech}>
               <ActionBarPrimitive.Speak className={iconButtonClass}>
                 <Volume2 className="size-3.5" />
@@ -630,10 +633,6 @@ function textFilePreview(data: string, mimeType: string) {
 
 function ToolActionMessagePart(part: ToolCallMessagePartProps) {
   const action = isChatToolAction(part.artifact) ? part.artifact : undefined;
-  if (action?.kind === "elicitation") {
-    return <ElicitationToolPart action={action} part={part} />;
-  }
-
   return <GenericToolActionMessagePart action={action} part={part} />;
 }
 
@@ -725,225 +724,6 @@ function isBareHostCapabilityToolAction(
   return title === "hostCapability" || title === "User input requested";
 }
 
-function ElicitationToolPart({
-  action,
-  part,
-}: {
-  action: ChatToolAction;
-  part: ToolCallMessagePartProps;
-}) {
-  const elicitation = parseElicitation(action.rawInput);
-  const phase = action.phase ?? part.status.type;
-  const hasOutput = hasToolOutput(action, part.result);
-
-  if (isInlinePermissionElicitation(elicitation)) {
-    if (hasOutput) return null;
-    return (
-      <InlinePermissionApprovalButtons
-        action={action}
-        elicitation={elicitation}
-        part={part}
-        phase={phase}
-      />
-    );
-  }
-
-  return (
-    <StandaloneElicitationToolPart
-      action={action}
-      elicitation={elicitation}
-      part={part}
-    />
-  );
-}
-
-function StandaloneElicitationToolPart({
-  action,
-  elicitation,
-  part,
-}: {
-  action: ChatToolAction;
-  elicitation?: ChatElicitation;
-  part: ToolCallMessagePartProps;
-}) {
-  const { t } = useTranslation();
-  const phase = action.phase ?? part.status.type;
-  const title =
-    action.title || elicitation?.title || t("messages.elicitation.userInput");
-  const outputText = getToolOutputText(action, part.result);
-  const questions = elicitation?.questions;
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [fallbackAnswer, setFallbackAnswer] = useState("");
-  const { resolveElicitation } = useChatRuntimeActions();
-  const hasTextAfterTool = useHasTextAfterToolCall(part.toolCallId);
-  const [manualOpen, setManualOpen] = useState<boolean | undefined>();
-  const awaitingInput = phase === "awaitingDecision";
-  const hasInputQuestions =
-    elicitation?.kind === "userInput" || Boolean(questions?.length);
-  const open = manualOpen ?? (awaitingInput || !hasTextAfterTool);
-
-  const resume = (response: ChatElicitationResponse) => {
-    if (!awaitingInput) return;
-    resolveElicitation(
-      action.elicitationId ?? elicitation?.id ?? part.toolCallId,
-      response,
-      part.toolCallId,
-    );
-  };
-
-  const submitAnswers = () => {
-    const responseAnswers = questions?.length
-      ? questions.map((question) => {
-          const value = answers[question.id];
-          if (value === undefined) {
-            throw new Error(`Missing answer for question ${question.id}.`);
-          }
-          return {
-            id: question.id,
-            value,
-          };
-        })
-      : [{ id: "answer", value: fallbackAnswer }];
-    resume({ answers: responseAnswers, type: "answers" });
-  };
-
-  return (
-    <Collapsible
-      className={toolCallCardClassName}
-      onOpenChange={setManualOpen}
-      open={open}
-    >
-      <ToolActionHeader
-        details
-        failed={phase === "failed"}
-        open={open}
-        phase={phase}
-        running={awaitingInput}
-        title={title}
-      />
-      <CollapsibleContent
-        className="
-          overflow-hidden
-          data-[state=closed]:animate-collapsible-up
-          data-[state=open]:animate-collapsible-down
-        "
-      >
-        <div
-          className="
-            space-y-3 border-t border-foreground/10 p-2.5
-            dark:border-white/10
-          "
-        >
-          {elicitation?.body ? (
-            <div className="text-sm/5 whitespace-pre-wrap">
-              {elicitation.body}
-            </div>
-          ) : null}
-
-          {hasInputQuestions ? (
-            <div className="space-y-3">
-              {questions?.length ? (
-                questions.map((question) => (
-                  <ElicitationQuestionInput
-                    disabled={!awaitingInput}
-                    key={question.id}
-                    onChange={(value) =>
-                      setAnswers((current) => ({
-                        ...current,
-                        [question.id]: value,
-                      }))
-                    }
-                    question={question}
-                    value={answers[question.id]}
-                  />
-                ))
-              ) : (
-                <textarea
-                  className="
-                    min-h-20 w-full resize-y rounded-md border
-                    border-foreground/8 bg-background/80 px-3 py-2 text-sm
-                    outline-none
-                    focus-visible:ring-2 focus-visible:ring-foreground/10
-                    dark:border-white/8
-                  "
-                  disabled={!awaitingInput}
-                  onChange={(event) => setFallbackAnswer(event.target.value)}
-                  value={fallbackAnswer}
-                />
-              )}
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button
-                  disabled={!awaitingInput}
-                  onClick={() => resume({ type: "cancel" })}
-                  size="xs"
-                  type="button"
-                  variant="ghost"
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  disabled={!awaitingInput}
-                  onClick={submitAnswers}
-                  size="xs"
-                  type="button"
-                >
-                  {t("common.submit")}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <PermissionApprovalActions
-              allowBypass={!isPlanApprovalToolAction(action)}
-              disabled={!awaitingInput}
-              onResume={resume}
-            />
-          )}
-
-          {outputText ? (
-            <ToolPreBlock label={t("messages.response")} value={outputText} />
-          ) : null}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
-function InlinePermissionApprovalButtons({
-  action,
-  elicitation,
-  part,
-  phase,
-}: {
-  action: ChatToolAction;
-  elicitation?: ChatElicitation;
-  part: ToolCallMessagePartProps;
-  phase: string;
-}) {
-  const [submitted, setSubmitted] = useState(false);
-  const { resolveElicitation } = useChatRuntimeActions();
-  const awaitingInput = phase === "awaitingDecision";
-  const resume = (response: ChatElicitationResponse) => {
-    if (!awaitingInput) return;
-    setSubmitted(true);
-    resolveElicitation(
-      action.elicitationId ?? elicitation?.id ?? part.toolCallId,
-      response,
-      part.toolCallId,
-    );
-  };
-
-  if (submitted || !awaitingInput) return null;
-
-  return (
-    <PermissionApprovalActions
-      allowBypass={!isPlanApprovalToolAction(action)}
-      className="px-1 pt-1"
-      disabled={false}
-      onResume={resume}
-    />
-  );
-}
-
 function PermissionApprovalActions({
   allowBypass = true,
   className,
@@ -1016,15 +796,6 @@ function PermissionApprovalActions({
   );
 }
 
-function isInlinePermissionElicitation(
-  elicitation?: ChatElicitation,
-): elicitation is ChatElicitation {
-  return Boolean(
-    isPermissionElicitation(elicitation) &&
-    (elicitation.questions?.length ?? 0) === 0,
-  );
-}
-
 function isPermissionElicitation(
   elicitation?: ChatElicitation,
 ): elicitation is ChatElicitation {
@@ -1033,10 +804,6 @@ function isPermissionElicitation(
     (elicitation.kind === "approval" ||
       elicitation.kind === "permissionProfile"),
   );
-}
-
-function isPlanApprovalToolAction(action?: ChatToolAction) {
-  return action?.kind === "plan";
 }
 
 function toolActionFromMessagePart(part: unknown): ChatToolAction | undefined {
@@ -1335,26 +1102,6 @@ function getToolOutputText(
   if (typeof result === "string") return result;
   if (result === undefined || result === null) return "";
   return JSON.stringify(result, null, 2);
-}
-
-function hasToolOutput(action: ChatToolAction | undefined, result: unknown) {
-  if (getToolOutputText(action, result)) return true;
-  return Boolean(action?.output?.some((output) => output.text));
-}
-
-function parseElicitation(
-  rawInput?: string | null,
-): ChatElicitation | undefined {
-  if (!rawInput) return undefined;
-
-  try {
-    const parsed: unknown = JSON.parse(rawInput);
-    if (isChatElicitationData(parsed)) return parsed;
-  } catch {
-    return undefined;
-  }
-
-  return undefined;
 }
 
 function isRunningToolPhase(phase: string) {
@@ -1803,7 +1550,9 @@ function PlanMessagePart({ plan }: { plan: ChatPlanData }) {
                 "
               >
                 <Button
-                  onClick={startImplementation}
+                  onClick={() => {
+                    void startImplementation();
+                  }}
                   size="sm"
                   type="button"
                   variant="outline"
@@ -1871,6 +1620,10 @@ function PlanEntryStatusIcon({
       return <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />;
     case "in_progress":
       return <CircleDot className="mt-0.5 size-3.5 shrink-0 text-amber-600" />;
+    case "pending":
+      return (
+        <Circle className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+      );
     default:
       return (
         <Circle className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />

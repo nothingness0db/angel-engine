@@ -278,6 +278,9 @@ importers:
 
   packages/js-client:
     dependencies:
+      "@agentclientprotocol/sdk":
+        specifier: ^0.21.1
+        version: 0.21.1(zod@4.4.3)
       "@sindresorhus/is":
         specifier: ^4.6.0
         version: 4.6.0
@@ -300,9 +303,18 @@ importers:
       "@types/react-dom":
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.14)
+      "@typescript-eslint/eslint-plugin":
+        specifier: ^8.59.2
+        version: 8.59.3(@typescript-eslint/parser@8.59.3(eslint@10.4.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.4.0(jiti@2.7.0))(typescript@6.0.3)
+      "@typescript-eslint/parser":
+        specifier: ^8.59.2
+        version: 8.59.3(eslint@10.4.0(jiti@2.7.0))(typescript@6.0.3)
       "@vitejs/plugin-react":
         specifier: ^6.0.2
         version: 6.0.2(vite@8.0.13(@types/node@25.8.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.47.1)(tsx@4.22.0)(yaml@2.9.0))
+      eslint:
+        specifier: ^10.4.0
+        version: 10.4.0(jiti@2.7.0)
       react:
         specifier: ^19.2.6
         version: 19.2.6
@@ -320,6 +332,14 @@ importers:
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(msw@2.14.6(@types/node@25.8.0)(typescript@6.0.3))(vite@8.0.13(@types/node@25.8.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.47.1)(tsx@4.22.0)(yaml@2.9.0))
 
 packages:
+  "@agentclientprotocol/sdk@0.21.1":
+    resolution:
+      {
+        integrity: sha512-ZTLH+o9QxcZDLX/9ww+W7C2iExnXFM+vD/uGFVSlR61Kzj9FaxUqBC6Rv/kwgA7qVWYUEI9c5ZNqCuO9PM4rKg==,
+      }
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+
   "@ai-sdk/gateway@3.0.114":
     resolution:
       {
@@ -4370,6 +4390,14 @@ packages:
         integrity: sha512-L2eAxN46Vq2Ss3nDegrH7wQVMeWH03ahawp+OdzUtQWqL3cq6Bt149q9XhY3cWc9fJsxuWjLfCn+3T9uApIlBA==,
       }
     hasBin: true
+
+  "@remixicon/react@4.9.0":
+    resolution:
+      {
+        integrity: sha512-5/jLDD4DtKxH2B4QVXTobvV1C2uL8ab9D5yAYNtFt+w80O0Ys1xFOrspqROL3fjrZi+7ElFUWE37hBfaAl6U+Q==,
+      }
+    peerDependencies:
+      react: ">=18.2.0"
 
   "@rolldown/binding-android-arm64@1.0.1":
     resolution:
@@ -9969,14 +9997,6 @@ packages:
       }
     engines: { node: ">=12" }
 
-  "@remixicon/react@4.9.0":
-    resolution:
-      {
-        integrity: sha512-5/jLDD4DtKxH2B4QVXTobvV1C2uL8ab9D5yAYNtFt+w80O0Ys1xFOrspqROL3fjrZi+7ElFUWE37hBfaAl6U+Q==,
-      }
-    peerDependencies:
-      react: ">=18.2.0"
-
   macos-alias@0.2.12:
     resolution:
       {
@@ -13730,6 +13750,10 @@ packages:
       }
 
 snapshots:
+  "@agentclientprotocol/sdk@0.21.1(zod@4.4.3)":
+    dependencies:
+      zod: 4.4.3
+
   "@ai-sdk/gateway@3.0.114(zod@4.4.3)":
     dependencies:
       "@ai-sdk/provider": 3.0.10
@@ -16647,6 +16671,10 @@ snapshots:
       prompts: 2.4.2
       smol-toml: 1.6.1
       tinyexec: 1.1.2
+
+  "@remixicon/react@4.9.0(react@19.2.6)":
+    dependencies:
+      react: 19.2.6
 
   "@rolldown/binding-android-arm64@1.0.1":
     optional: true
@@ -20105,10 +20133,6 @@ snapshots:
       yallist: 3.1.1
 
   lru-cache@7.18.3: {}
-
-  "@remixicon/react@4.9.0(react@19.2.6)":
-    dependencies:
-      react: 19.2.6
 
   macos-alias@0.2.12:
     dependencies:

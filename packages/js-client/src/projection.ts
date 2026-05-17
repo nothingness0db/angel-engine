@@ -82,6 +82,12 @@ function displayMessagePartToChatParts(
       if (!part.action) {
         throw new Error("Display tool-call part is missing action.");
       }
+      {
+        const elicitation = displayElicitationFromAction(part.action);
+        if (elicitation) {
+          return [{ data: elicitation, name: "elicitation", type: "data" }];
+        }
+      }
       return [chatPartFromAction(toChatAction(part.action))];
     case "plan":
       if (!part.plan) {
@@ -263,6 +269,14 @@ function projectMessagePart(
   }
 
   if (part.type === "tool-call" && part.action) {
+    const displayElicitation = displayElicitationFromAction(part.action);
+    if (displayElicitation) {
+      return {
+        elicitation: displayElicitation,
+        type: "elicitation",
+      };
+    }
+
     const action = toChatAction(part.action);
     const elicitation = questionElicitationFromAction(action);
     if (elicitation) {
@@ -392,6 +406,20 @@ function toChatAction(action: ToolActionSnapshotLike): ChatToolAction {
   };
 }
 
+function displayElicitationFromAction(
+  action: ToolActionSnapshotLike,
+): ChatElicitation | undefined {
+  if (action.kind !== "elicitation") return undefined;
+  const elicitation = parseChatElicitation(action.rawInput);
+  if (!elicitation) {
+    throw new Error("Display elicitation action is missing elicitation input.");
+  }
+  return {
+    ...elicitation,
+    phase: elicitationPhaseFromAction(action.phase, actionHasOutput(action)),
+  };
+}
+
 function chatPartFromAction(action: ChatToolAction): ChatHistoryMessagePart {
   const elicitation = questionElicitationFromAction(action);
   if (elicitation) {
@@ -446,6 +474,9 @@ function elicitationPhaseFromAction(
   hasOutput: boolean,
 ) {
   if (hasOutput) return "resolved:Answers";
+  if (actionPhase === undefined) {
+    throw new Error("Elicitation action is missing phase.");
+  }
   switch (actionPhase) {
     case "completed":
       return "resolved:Answers";
@@ -460,7 +491,7 @@ function elicitationPhaseFromAction(
   }
 }
 
-function actionHasOutput(action: ChatToolAction) {
+function actionHasOutput(action: ToolActionSnapshotLike) {
   return Boolean(
     action.outputText || action.output?.some((output) => output.text),
   );

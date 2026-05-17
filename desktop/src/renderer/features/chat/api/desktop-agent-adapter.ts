@@ -20,7 +20,7 @@ export function createDesktopAgentAdapter({
     id: "desktop",
     run: (input, context) =>
       streamDesktopChatEvents(
-        input as ChatSendInput,
+        input,
         context,
         onController,
       ) as AsyncIterable<ClientChatStreamEvent>,

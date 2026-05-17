@@ -6,7 +6,7 @@ export function chatRuntimeProviderKey(
   suffix?: string,
 ): string {
   const key = `chat:${chatId}:${runtime}`;
-  return suffix ? `${key}:${suffix}` : key;
+  return suffix !== undefined && suffix.length > 0 ? `${key}:${suffix}` : key;
 }
 
 export function workspaceRuntimePageKey({
@@ -20,7 +20,7 @@ export function workspaceRuntimePageKey({
   selectedChatId?: string;
   settingsActive: boolean;
 }): string {
-  if (selectedChatId) {
+  if (selectedChatId !== undefined) {
     return `chat:${selectedChatId}:${chatRuntime ?? "pending"}`;
   }
 
@@ -28,9 +28,18 @@ export function workspaceRuntimePageKey({
     return "settings";
   }
 
-  return draftProjectId ? `draft:project:${draftProjectId}` : "draft";
+  return draftProjectId !== undefined
+    ? `draft:project:${draftProjectId}`
+    : "draft";
 }
 
 export function draftRuntimeKeyFromProjectId(projectId: string | undefined) {
-  return projectId ? `project:${projectId}` : "create";
+  return projectId !== undefined ? `project:${projectId}` : "create";
+}
+
+export function draftAgentConfigKey(
+  runtimePageKey: string,
+  runtime: AgentRuntime,
+): string {
+  return `${runtimePageKey}:${runtime}`;
 }

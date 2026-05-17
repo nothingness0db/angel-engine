@@ -1585,10 +1585,7 @@ function upsertToolActionPart(
     return;
   }
 
-  const elicitationActionId = elicitationBackingActionId(action);
-  if (elicitationActionId) {
-    removeBackingHostCapabilityPart(parts, elicitationActionId);
-  } else if (
+  if (
     isEmptyHostCapabilityAction(action) &&
     parts.some((part) => partReferencesElicitationAction(part, action.id))
   ) {
@@ -1804,27 +1801,6 @@ function partReferencesElicitationAction(
   if (part.type === "data" && part.name === "elicitation") {
     return part.data.actionId === actionId;
   }
-  return (
-    part.type === "tool-call" &&
-    part.artifact.kind === "elicitation" &&
-    elicitationBackingActionId(part.artifact) === actionId
-  );
-}
-
-function elicitationBackingActionId(action: ChatToolAction) {
-  if (action.kind !== "elicitation" || !action.rawInput) return undefined;
-  try {
-    const parsed: unknown = JSON.parse(action.rawInput);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      typeof (parsed as Partial<ChatElicitation>).actionId === "string"
-    ) {
-      return (parsed as Partial<ChatElicitation>).actionId ?? undefined;
-    }
-  } catch {
-    return undefined;
-  }
   return undefined;
 }
 
@@ -1901,6 +1877,7 @@ function elicitationPhaseFromAction(
   hasOutput: boolean,
 ) {
   if (hasOutput) return "resolved:Answers";
+  if (actionPhase === undefined) return fallback;
   switch (actionPhase) {
     case "completed":
       return "resolved:Answers";
@@ -1939,6 +1916,7 @@ function normalizeElicitationResponse(
 ): ChatElicitationResponse | undefined {
   if (!payload || typeof payload !== "object") return undefined;
   const response = payload as Partial<ChatElicitationResponse>;
+  if (response.type === undefined) return undefined;
 
   switch (response.type) {
     case "allow":
@@ -2153,6 +2131,9 @@ function engineMessageContentToHistoryParts(
       }
       case "file":
         return [fileHistoryPartFromMessagePart(part)];
+      case "audio":
+      case "source":
+        return [];
       case "data":
         if (part.name === "chat-error" && isChatErrorData(part.data)) {
           return [

@@ -461,21 +461,23 @@ fn acp_find_config_option<'a>(
     category: &str,
     ids: &[&str],
 ) -> Option<&'a SessionConfigOption> {
+    let targets = ids
+        .iter()
+        .map(|id| normalize_config_id(id))
+        .collect::<Vec<_>>();
     options
         .iter()
-        .find(|option| option.category.as_deref() == Some(category))
-        .or_else(|| {
-            let targets = ids
+        .find(|option| {
+            let id = normalize_config_id(&option.id);
+            let name = normalize_config_id(&option.name);
+            targets
                 .iter()
-                .map(|id| normalize_config_id(id))
-                .collect::<Vec<_>>();
-            options.iter().find(|option| {
-                let id = normalize_config_id(&option.id);
-                let name = normalize_config_id(&option.name);
-                targets
-                    .iter()
-                    .any(|target| target == &id || target == &name)
-            })
+                .any(|target| target == &id || target == &name)
+        })
+        .or_else(|| {
+            options
+                .iter()
+                .find(|option| option.category.as_deref() == Some(category))
         })
 }
 

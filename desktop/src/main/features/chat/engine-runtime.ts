@@ -10,6 +10,7 @@ import type {
   TurnRunEvent,
   TurnRunResult,
 } from "@angel-engine/client-napi";
+import type { ProjectedTurnEvent } from "@angel-engine/js-client/projection";
 import type {
   Chat,
   ChatAttachmentInput,
@@ -28,19 +29,17 @@ import type {
   ChatSetPermissionModeResult,
   ChatSetRuntimeInput,
 } from "../../../shared/chat";
-import type { ChatRuntime } from "./runtime";
-type ClientInput = NonNullable<SendTextRequest["input"]>[number];
 
-import type { ProjectedTurnEvent } from "@angel-engine/js-client/projection";
+import type { ChatRuntime } from "./runtime";
 import path from "node:path";
 
 import {
   ActionPhase,
-  AngelSession as NativeAngelSession,
   ClientInputType,
-  ElicitationResponseType,
-  TurnRunEventType,
   createRuntimeOptions,
+  ElicitationResponseType,
+  AngelSession as NativeAngelSession,
+  TurnRunEventType,
 } from "@angel-engine/client-napi";
 import { ClaudeCodeSession } from "@angel-engine/js-client/claude";
 import {
@@ -56,6 +55,7 @@ import {
 import { app } from "electron";
 import { normalizeChatAttachmentsInput } from "../../../shared/chat";
 import { isTextLikeMimeType } from "../../../shared/mime";
+import { getProject } from "../projects/repository";
 import {
   createChat,
   renameChatFromPrompt,
@@ -64,7 +64,7 @@ import {
   setChatRuntime as setChatRuntimeRecord,
   touchChat,
 } from "./repository";
-import { getProject } from "../projects/repository";
+type ClientInput = NonNullable<SendTextRequest["input"]>[number];
 
 type ChatStreamObserver = (
   event: ProjectedTurnEvent | { chat: Chat; type: "chat" },
@@ -670,7 +670,7 @@ class DesktopAngelSession {
       }
 
       const actionElicitationId = pendingActionElicitationId(event);
-      if (actionElicitationId) {
+      if (actionElicitationId !== undefined) {
         const followup = await this.waitForElicitation(
           actionElicitationId,
           request.signal,
@@ -791,7 +791,13 @@ function pendingActionElicitationId(event: TurnRunEvent) {
     return undefined;
   }
 
-  return action.elicitationId || action.id || undefined;
+  if (action.elicitationId !== undefined && action.elicitationId.length > 0) {
+    return action.elicitationId;
+  }
+  if (action.id.length > 0) {
+    return action.id;
+  }
+  return undefined;
 }
 
 async function yieldToEventLoop() {

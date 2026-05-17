@@ -16,7 +16,13 @@ if (process.platform === "win32") {
 
 restoreShellPath();
 
-app.whenReady().then(bootstrap);
+void app
+  .whenReady()
+  .then(bootstrap)
+  .catch((error: unknown) => {
+    console.error("Failed to bootstrap app.", error);
+    app.quit();
+  });
 
 app.on("before-quit", beforeQuit);
 

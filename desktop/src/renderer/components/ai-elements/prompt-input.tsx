@@ -502,7 +502,12 @@ export function PromptInputActionAddScreenshot({
   );
 
   return (
-    <DropdownMenuItem {...props} onSelect={handleSelect}>
+    <DropdownMenuItem
+      {...props}
+      onSelect={(event) => {
+        void handleSelect(event);
+      }}
+    >
       <Monitor className="mr-2 size-4" />
       {label ?? t("promptInput.takeScreenshot")}
     </DropdownMenuItem>
@@ -868,96 +873,105 @@ export function PromptInput({
   );
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
-    async (event) => {
+    (event) => {
       event.preventDefault();
 
-      const form = event.currentTarget;
-      const text = usingProvider
-        ? controller.textInput.value
-        : (() => {
-            const formData = new FormData(form);
-            const value = formData.get("message");
-            if (typeof value !== "string") {
-              throw new TypeError("Prompt input form is missing message field.");
-            }
-            return value;
-          })();
-
-      // Reset form immediately after capturing text to avoid race condition
-      // where user input during async blob conversion would be lost
-      if (!usingProvider) {
-        form.reset();
-      }
-
-      // Convert blob URLs to data URLs asynchronously
-      let convertedFiles: PromptInputSubmittedFile[];
-      try {
-        convertedFiles = await Promise.all(
-          files.map(async (file) => {
-            const item = { ...file } as PromptInputSubmittedFile & {
-              file?: File;
-              id?: string;
-            };
-            const sourceFile = item.file;
-            Reflect.deleteProperty(item, "id");
-            Reflect.deleteProperty(item, "file");
-
-            if (item.url?.startsWith("blob:")) {
-              const dataUrl = sourceFile
-                ? await convertFileToDataUrl(sourceFile)
-                : await convertBlobUrlToDataUrl(item.url);
-              if (!dataUrl) {
-                throw new Error(
-                  `Could not read ${item.filename ?? "attachment"}.`,
+      void (async () => {
+        const form = event.currentTarget;
+        const text = usingProvider
+          ? controller.textInput.value
+          : (() => {
+              const formData = new FormData(form);
+              const value = formData.get("message");
+              if (typeof value !== "string") {
+                throw new TypeError(
+                  "Prompt input form is missing message field.",
                 );
               }
-              return {
-                ...item,
-                url: dataUrl,
-              };
-            }
-            return item;
-          }),
-        );
-      } catch (error) {
-        // Don't clear on error - user may want to retry
-        onError?.({
-          code: "file_read",
-          message: getErrorMessage(error),
-        });
-        return;
-      }
+              return value;
+            })();
 
-      const clearSubmittedInput = () => {
-        clear();
-        if (usingProvider) {
-          controller.textInput.clear();
+        // Reset form immediately after capturing text to avoid race condition
+        // where user input during async blob conversion would be lost
+        if (!usingProvider) {
+          form.reset();
         }
-      };
-      const reportSubmitError = (error: unknown) => {
+
+        // Convert blob URLs to data URLs asynchronously
+        let convertedFiles: PromptInputSubmittedFile[];
+        try {
+          convertedFiles = await Promise.all(
+            files.map(async (file) => {
+              const item = { ...file } as PromptInputSubmittedFile & {
+                file?: File;
+                id?: string;
+              };
+              const sourceFile = item.file;
+              Reflect.deleteProperty(item, "id");
+              Reflect.deleteProperty(item, "file");
+
+              if (item.url?.startsWith("blob:")) {
+                const dataUrl = sourceFile
+                  ? await convertFileToDataUrl(sourceFile)
+                  : await convertBlobUrlToDataUrl(item.url);
+                if (!dataUrl) {
+                  throw new Error(
+                    `Could not read ${item.filename ?? "attachment"}.`,
+                  );
+                }
+                return {
+                  ...item,
+                  url: dataUrl,
+                };
+              }
+              return item;
+            }),
+          );
+        } catch (error) {
+          // Don't clear on error - user may want to retry
+          onError?.({
+            code: "file_read",
+            message: getErrorMessage(error),
+          });
+          return;
+        }
+
+        const clearSubmittedInput = () => {
+          clear();
+          if (usingProvider) {
+            controller.textInput.clear();
+          }
+        };
+        const reportSubmitError = (error: unknown) => {
+          onError?.({
+            code: "submit",
+            message: getErrorMessage(error),
+          });
+        };
+
+        try {
+          const result = onSubmit({ files: convertedFiles, text }, event);
+          if (result instanceof Promise) {
+            try {
+              await result;
+              clearSubmittedInput();
+            } catch (error) {
+              reportSubmitError(error);
+            }
+            return;
+          }
+
+          clearSubmittedInput();
+        } catch (error) {
+          // Don't clear on error - user may want to retry
+          reportSubmitError(error);
+        }
+      })().catch((error: unknown) => {
         onError?.({
           code: "submit",
           message: getErrorMessage(error),
         });
-      };
-
-      try {
-        const result = onSubmit({ files: convertedFiles, text }, event);
-        if (result instanceof Promise) {
-          try {
-            await result;
-            clearSubmittedInput();
-          } catch (error) {
-            reportSubmitError(error);
-          }
-          return;
-        }
-
-        clearSubmittedInput();
-      } catch (error) {
-        // Don't clear on error - user may want to retry
-        reportSubmitError(error);
-      }
+      });
     },
     [usingProvider, controller, files, onSubmit, clear, onError],
   );

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -33,6 +34,9 @@ export function RenameChatDialog({
       <DialogContent className="gap-5 rounded-2xl">
         <DialogHeader>
           <DialogTitle>{t("dialog.renameChat")}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {t("dialog.chatName")}
+          </DialogDescription>
         </DialogHeader>
         {chat ? (
           <RenameChatForm

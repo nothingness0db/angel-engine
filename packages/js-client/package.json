@@ -81,6 +81,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "vite --host 127.0.0.1 --config playground/vite.config.ts",
+    "lint": "eslint src",
     "playground": "vite --host 127.0.0.1 --config playground/vite.config.ts",
     "playground:build": "vite build --config playground/vite.config.ts",
     "test": "vitest run",
@@ -92,7 +93,10 @@
     "@assistant-ui/react": "^0.12.28",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
     "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^10.4.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "typescript": "^6.0.3",
@@ -117,6 +121,7 @@
     }
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "^0.21.1",
     "@sindresorhus/is": "^4.6.0",
     "arktype": "^2.2.0"
   }

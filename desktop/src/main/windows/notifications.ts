@@ -170,7 +170,7 @@ function notificationChatTitle(chat: Chat) {
 
 function notificationBody(text: string | null | undefined, fallback: string) {
   const normalizedText = text?.replace(/\s+/g, " ").trim();
-  const normalized = normalizedText ? normalizedText : fallback;
+  const normalized = normalizedText || fallback;
   return normalized.length > 220
     ? `${normalized.slice(0, 217).trimEnd()}...`
     : normalized;

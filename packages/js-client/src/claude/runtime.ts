@@ -3,7 +3,6 @@ import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
 import type { ChatJsonObject } from "../types.js";
 import type { ClaudeSdkModule } from "./types.js";
-import { ClientInputType } from "@angel-engine/client-napi";
 import is from "@sindresorhus/is";
 import { claudeEffortLevelIds, claudePermissionModeIds } from "./utils.js";
 
@@ -63,14 +62,14 @@ function clientInputToContent(
   if (text) content.push({ text, type: "text" });
   for (const value of input) {
     switch (value.type) {
-      case ClientInputType.Text: {
+      case "text": {
         const itemText = value.text;
         if (itemText && itemText !== text) {
           content.push({ text: itemText, type: "text" });
         }
         break;
       }
-      case ClientInputType.Image:
+      case "image":
         content.push({
           source: {
             data: value.data,
@@ -80,7 +79,7 @@ function clientInputToContent(
           type: "image",
         });
         break;
-      case ClientInputType.FileMention:
+      case "file_mention":
         const mentionPath = is.nonEmptyString(value.path)
           ? value.path
           : value.name;
@@ -92,19 +91,19 @@ function clientInputToContent(
           type: "text",
         });
         break;
-      case ClientInputType.EmbeddedTextResource:
+      case "embedded_text_resource":
         content.push({
           text: [`Resource: ${value.uri}`, value.text].join("\n\n"),
           type: "text",
         });
         break;
-      case ClientInputType.ResourceLink:
+      case "resource_link":
         content.push({
           text: `Resource: ${value.name} (${value.uri})`,
           type: "text",
         });
         break;
-      case ClientInputType.EmbeddedBlobResource:
+      case "embedded_blob_resource":
         const label = is.string(value.name) ? value.name : value.uri;
         if (!is.string(label)) {
           throw new Error("Embedded blob resource is missing name or uri.");
@@ -114,18 +113,12 @@ function clientInputToContent(
           type: "text",
         });
         break;
-      case ClientInputType.RawContentBlock:
+      case "raw_content_block":
         if (!is.plainObject(value.value)) {
           throw new Error("Raw content block input must be an object.");
         }
         content.push(value.value as ChatJsonObject);
         break;
-      default: {
-        const exhaustive: never = value;
-        throw new Error(
-          `Unsupported client input type: ${JSON.stringify(exhaustive)}`,
-        );
-      }
     }
   }
   return content;

@@ -43,6 +43,7 @@ import {
   projectDraftRoutePath,
 } from "@/app/workspace/workspace-route-paths";
 import {
+  draftAgentConfigKey,
   draftRuntimeKeyFromProjectId,
   workspaceRuntimePageKey,
 } from "@/app/workspace/workspace-runtime-keys";
@@ -66,6 +67,10 @@ import {
   renameChatMutationOptions,
   setChatRuntimeMutationOptions,
 } from "@/features/chat/api/queries";
+import {
+  broadcastAllChatsDeleted,
+  subscribeToChatMetadataEvents,
+} from "@/features/chat/chat-metadata-events";
 import { RenameChatDialog } from "@/features/chat/components/rename-chat-dialog";
 import {
   cancelAllChatRuns,
@@ -263,6 +268,13 @@ function WorkspacePageContent({
     setDraftAgentConfigs,
     setDraftRuntimes,
   });
+  const selectedChatAgentConfig =
+    draftAgentConfigFromExplicitOverrides({
+      mode: modeOverride,
+      model: modelOverride,
+      permissionMode: permissionModeOverride,
+      reasoningEffort: reasoningEffortOverride,
+    }) ?? draftAgentConfig;
 
   useEffect(() => {
     setActiveChatRunId(selectedChatId);
@@ -384,9 +396,26 @@ function WorkspacePageContent({
       messages?: ChatHistoryMessage[],
       config?: ChatRuntimeConfig,
     ) => {
+      if (isDraftPage && isAgentRuntime(chat.runtime)) {
+        const runtime = chat.runtime;
+        const carriedConfig = draftAgentConfigFromExplicitOverrides({
+          mode: modeOverride,
+          model: modelOverride,
+          permissionMode: permissionModeOverride,
+          reasoningEffort: reasoningEffortOverride,
+        });
+        setDraftAgentConfigs((current) =>
+          carryDraftAgentConfigToChat(current, {
+            config: carriedConfig,
+            runtime,
+            targetChatId: chat.id,
+          }),
+        );
+      }
+
       if (messages && isAgentRuntime(chat.runtime)) {
         const runtime = chat.runtime;
-        const preference = agentRuntimePreferenceFromConfig(config, {
+        const preference = agentRuntimePreferenceFromExplicitOverrides({
           mode: modeOverride,
           model: modelOverride,
           permissionMode: permissionModeOverride,
@@ -438,6 +467,23 @@ function WorkspacePageContent({
   const renameChatMutation = useMutation({
     ...renameChatMutationOptions({ api, queryClient }),
   });
+
+  const applyAllChatsDeleted = useCallback(() => {
+    cancelAllChatRuns();
+    queryClient.setQueryData<Chat[]>(queryKeys.chats.list(), EMPTY_CHATS);
+    queryClient.removeQueries({ queryKey: queryKeys.chats.details() });
+    navigate("/", { replace: true });
+  }, [navigate, queryClient]);
+
+  useEffect(
+    () =>
+      subscribeToChatMetadataEvents((event) => {
+        if (event.type === "delete-all") {
+          applyAllChatsDeleted();
+        }
+      }),
+    [applyAllChatsDeleted],
+  );
 
   const createProjectFromPicker = useCallback(async () => {
     try {
@@ -632,10 +678,8 @@ function WorkspacePageContent({
   const deleteAllChats = useCallback(async () => {
     try {
       const result = await deleteAllChatsMutation.mutateAsync();
-      cancelAllChatRuns();
-      queryClient.setQueryData<Chat[]>(queryKeys.chats.list(), EMPTY_CHATS);
-      queryClient.removeQueries({ queryKey: queryKeys.chats.details() });
-      navigate("/", { replace: true });
+      applyAllChatsDeleted();
+      broadcastAllChatsDeleted();
       toast({
         description: t("notifications.chatsDeletedDescription", {
           count: result.deletedCount,
@@ -649,13 +693,22 @@ function WorkspacePageContent({
         variant: "destructive",
       });
     }
-  }, [deleteAllChatsMutation, navigate, queryClient, t, toast]);
+  }, [applyAllChatsDeleted, deleteAllChatsMutation, t, toast]);
 
   if (selectedChat) {
     const canonicalPath = chatRoutePath(selectedChat);
     if (canonicalPath !== currentRoutePath) {
       return <Redirect replace to={canonicalPath} />;
     }
+  }
+
+  if (
+    selectedChatId !== undefined &&
+    chatsQuery.isSuccess &&
+    !selectedChat &&
+    !selectedChatIsRunning
+  ) {
+    return <Redirect replace to="/" />;
   }
 
   return (
@@ -711,7 +764,7 @@ function WorkspacePageContent({
                 {selectedChatId ? (
                   selectedChatIsRunning && selectedChat ? (
                     <ActiveChatThread
-                      draftAgentConfig={draftAgentConfig}
+                      draftAgentConfig={selectedChatAgentConfig}
                       onChatCreated={updateChatFromRun}
                       onChatMessagesUpdated={setChatMessagesInCache}
                       onChatUpdated={updateChatFromRun}
@@ -729,7 +782,7 @@ function WorkspacePageContent({
                         <RestoredChatThread
                           api={api}
                           currentRoutePath={currentRoutePath}
-                          draftAgentConfig={draftAgentConfig}
+                          draftAgentConfig={selectedChatAgentConfig}
                           onChatCreated={updateChatFromRun}
                           onChatMessagesUpdated={setChatMessagesInCache}
                           onChatUpdated={updateChatFromRun}
@@ -814,22 +867,58 @@ function upsertChatInList(chats: Chat[], chat: Chat) {
   );
 }
 
-function agentRuntimePreferenceFromConfig(
-  config: ChatRuntimeConfig | undefined,
-  fallback: AgentRuntimePreference,
+function agentRuntimePreferenceFromExplicitOverrides(
+  overrides: AgentRuntimePreference,
 ): AgentRuntimePreference | undefined {
-  const preference = sanitizeAgentRuntimePreference({
-    mode:
-      config?.agentState?.currentMode ?? config?.currentMode ?? fallback.mode,
-    model: config?.currentModel ?? fallback.model,
-    permissionMode:
-      config?.agentState?.currentPermissionMode ??
-      config?.currentPermissionMode ??
-      fallback.permissionMode,
-    reasoningEffort: config?.currentReasoningEffort ?? fallback.reasoningEffort,
-  });
+  const preference = sanitizeAgentRuntimePreference(overrides);
 
   return Object.keys(preference).length > 0 ? preference : undefined;
+}
+
+function carryDraftAgentConfigToChat(
+  configs: Partial<Record<string, DraftAgentConfig>>,
+  {
+    config,
+    runtime,
+    targetChatId,
+  }: {
+    config?: DraftAgentConfig;
+    runtime: AgentRuntime;
+    targetChatId: string;
+  },
+): Partial<Record<string, DraftAgentConfig>> {
+  if (config === undefined || Object.keys(config).length === 0) return configs;
+
+  const targetKey = draftAgentConfigKey(
+    workspaceRuntimePageKey({
+      chatRuntime: runtime,
+      selectedChatId: targetChatId,
+      settingsActive: false,
+    }),
+    runtime,
+  );
+  if (configs[targetKey] === config) return configs;
+
+  return {
+    ...configs,
+    [targetKey]: config,
+  };
+}
+
+function draftAgentConfigFromExplicitOverrides(
+  overrides: DraftAgentConfig,
+): DraftAgentConfig | undefined {
+  const config: DraftAgentConfig = {};
+  if (overrides.model !== undefined) config.model = overrides.model;
+  if (overrides.mode !== undefined) config.mode = overrides.mode;
+  if (overrides.permissionMode !== undefined) {
+    config.permissionMode = overrides.permissionMode;
+  }
+  if (overrides.reasoningEffort !== undefined) {
+    config.reasoningEffort = overrides.reasoningEffort;
+  }
+
+  return Object.keys(config).length > 0 ? config : undefined;
 }
 
 function clearDraftAgentConfigs(

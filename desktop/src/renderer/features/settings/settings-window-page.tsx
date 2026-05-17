@@ -6,6 +6,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/components/ui/toast";
 import { deleteAllChatsMutationOptions } from "@/features/chat/api/queries";
+import { broadcastAllChatsDeleted } from "@/features/chat/chat-metadata-events";
 import { cancelAllChatRuns } from "@/features/chat/state/chat-run-store";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { useAgentSettings } from "@/features/settings/use-agent-settings";
@@ -48,6 +49,7 @@ export function SettingsWindowPage() {
       cancelAllChatRuns();
       queryClient.setQueryData<Chat[]>(queryKeys.chats.list(), EMPTY_CHATS);
       queryClient.removeQueries({ queryKey: queryKeys.chats.details() });
+      broadcastAllChatsDeleted();
       toast({
         description: t("notifications.chatsDeletedDescription", {
           count: result.deletedCount,

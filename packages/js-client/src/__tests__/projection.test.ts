@@ -156,6 +156,33 @@ describe("projection", () => {
     });
   });
 
+  it("projects elicitation tool actions", () => {
+    const event = projectTurnRunEvent({
+      messagePart: toolPart({
+        elicitationId: "elicitation-1",
+        kind: "elicitation",
+        phase: "awaitingDecision",
+        rawInput: JSON.stringify({
+          id: "elicitation-1",
+          kind: "approval",
+          phase: "open",
+        }),
+        title: "Permission request",
+      }),
+      turnId: "turn-1",
+      type: TurnRunEventType.Delta,
+    } as TurnRunEvent);
+
+    expect(event).toMatchObject({
+      elicitation: {
+        id: "elicitation-1",
+        kind: "approval",
+        phase: "open",
+      },
+      type: "elicitation",
+    });
+  });
+
   it("throws when required projection input is missing", () => {
     expect(() =>
       projectTurnRunEvent({

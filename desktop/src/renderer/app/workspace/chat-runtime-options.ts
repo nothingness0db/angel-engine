@@ -11,10 +11,10 @@ export function runtimeConfigOptionsToAgentOptions(
     label: defaultLabel,
     value: NO_CONFIG_OVERRIDE_VALUE,
   };
-  if (!options?.length) return [defaultOption];
+  if (options === undefined || options.length === 0) return [defaultOption];
   const runtimeOptions = options.flatMap((option) => {
     const value = selectedConfigOverride(option.value);
-    if (!value) return [];
+    if (value === undefined) return [];
     return [
       {
         description: option.description ?? undefined,
@@ -30,8 +30,9 @@ export function runtimeConfigOptionCount(
   options: ChatRuntimeConfigOption[] | undefined,
 ): number {
   return (
-    options?.filter((option) => selectedConfigOverride(option.value)).length ??
-    0
+    options?.filter(
+      (option) => selectedConfigOverride(option.value) !== undefined,
+    ).length ?? 0
   );
 }
 
@@ -69,7 +70,7 @@ export function resolveSavedConfigSelection({
   savedValue: string | undefined;
 }): { displayValue?: string; overrideValue?: string } {
   const saved = selectedConfigOverride(savedValue);
-  if (!saved || canSet === false) return {};
+  if (saved === undefined || canSet === false) return {};
 
   const optionValues = configOptionValues(options);
   if (optionValues.has(saved)) {
@@ -77,20 +78,33 @@ export function resolveSavedConfigSelection({
   }
 
   const current = selectedConfigOverride(currentValue);
-  if (current && (optionValues.size === 0 || optionValues.has(current))) {
+  if (
+    current !== undefined &&
+    (optionValues.size === 0 || optionValues.has(current))
+  ) {
     return { displayValue: current };
   }
 
+  if (options === undefined) {
+    return { displayValue: saved, overrideValue: saved };
+  }
+
   const first = firstConfigOptionValue(options);
-  return first ? { displayValue: first, overrideValue: first } : {};
+  return first !== undefined
+    ? { displayValue: first, overrideValue: first }
+    : {};
 }
 
 export function normalizeConfigDisplayValue(value: string | null | undefined) {
-  return value || NO_CONFIG_OVERRIDE_VALUE;
+  return value ?? NO_CONFIG_OVERRIDE_VALUE;
 }
 
 export function selectedConfigOverride(value: string | null | undefined) {
-  if (!value || value === NO_CONFIG_OVERRIDE_VALUE) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === NO_CONFIG_OVERRIDE_VALUE
+  ) {
     return undefined;
   }
   return value;
@@ -112,7 +126,7 @@ function configOptionValues(
   return new Set(
     options?.flatMap((option) => {
       const value = selectedConfigOverride(option.value);
-      return value ? [value] : [];
+      return value !== undefined ? [value] : [];
     }) ?? [],
   );
 }
@@ -122,5 +136,5 @@ function firstConfigOptionValue(
 ): string | undefined {
   return options
     ?.map((option) => selectedConfigOverride(option.value))
-    .find((value): value is string => Boolean(value));
+    .find((value): value is string => value !== undefined);
 }

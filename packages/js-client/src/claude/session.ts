@@ -99,6 +99,7 @@ import {
 } from "./tooling.js";
 import {
   claudeEffort,
+  claudePermissionModeIds,
   compactEvents,
   normalizeClaudeMode,
   permissionDecision,
@@ -112,9 +113,13 @@ export class ClaudeCodeSession {
   private readonly pendingPermissions = new Map<string, PendingPermission>();
   private activeQuery?: Query;
   private availableEfforts: SessionConfigValueJson[] = [];
-  private availablePermissionModes: SessionPermissionModeJson[] = [];
-  private conversationId?: string;
   private currentPermissionMode = "default";
+  private availablePermissionModes: SessionPermissionModeJson[] =
+    permissionModeOptionsFromIds(
+      claudePermissionModeIds(),
+      this.currentPermissionMode,
+    );
+  private conversationId?: string;
   private currentModel?: string;
   private currentReasoningEffort = "high";
   private modelInfos: ModelInfo[] = [];
@@ -217,7 +222,7 @@ export class ClaudeCodeSession {
       throw new Error("Claude sendText request is missing text.");
     }
     const text = request.text;
-    const input = request.input;
+    const input = request.input ?? [];
     if (!text && input.length === 0) {
       throw new Error("Text or input is required.");
     }
@@ -354,7 +359,10 @@ export class ClaudeCodeSession {
               ),
             ]
           : [];
-      default:
+      case "auth_status":
+      case "prompt_suggestion":
+      case "rate_limit_event":
+      case "tool_progress":
         return [];
     }
   }
@@ -696,10 +704,10 @@ export class ClaudeCodeSession {
   private startEngineTurn(
     conversationId: string,
     text: string,
-    input: NonNullable<SendTextRequest["input"]>,
+    input: SendTextRequest["input"],
   ): { turnId: string } {
     const result = this.client.sendThreadEvent(conversationId, {
-      input: [{ text, type: "text" }, ...input],
+      input: [{ text, type: "text" }, ...(input ?? [])],
       type: "inputs",
     });
     if (!result.turnId) {

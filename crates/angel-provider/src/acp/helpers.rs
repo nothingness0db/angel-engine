@@ -646,6 +646,19 @@ pub(super) fn session_config_options(value: &Value) -> Vec<SessionConfigOption> 
 }
 
 fn acp_config_category(raw_category: Option<&str>, id: &str, name: &str) -> Option<String> {
+    let identity_candidates = [id, name];
+    if identity_candidates
+        .iter()
+        .any(|value| config_name_matches(value, &["provider"]))
+    {
+        return Some("provider".to_string());
+    }
+    if identity_candidates
+        .iter()
+        .any(|value| config_name_matches(value, &["model"]))
+    {
+        return Some("model".to_string());
+    }
     let candidates = [raw_category.unwrap_or_default(), id, name];
     if candidates
         .iter()

@@ -46,11 +46,11 @@ export function createDesktopWindow({
     const url = hash
       ? `${MAIN_WINDOW_VITE_DEV_SERVER_URL}#${hash.replace(/^#/, "")}`
       : MAIN_WINDOW_VITE_DEV_SERVER_URL;
-    window.loadURL(url);
+    void window.loadURL(url);
   } else if (hash) {
-    window.loadFile(rendererFilePath, { hash });
+    void window.loadFile(rendererFilePath, { hash });
   } else {
-    window.loadFile(rendererFilePath);
+    void window.loadFile(rendererFilePath);
   }
 
   return window;
@@ -58,7 +58,7 @@ export function createDesktopWindow({
 
 function configureExternalLinkHandling(window: BrowserWindow) {
   window.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    void shell.openExternal(url);
     return { action: "deny" };
   });
 }

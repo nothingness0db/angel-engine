@@ -23,7 +23,6 @@ import type {
 import type { ClaudeToolInput } from "./sdk-types.js";
 
 import {
-  ClientEventType,
   EngineEventActionPhase,
   EngineEventContentKind,
   TurnRunEventType,
@@ -307,7 +306,7 @@ function turnRunEventFromClientEvent(
   event: ClientEvent,
 ): TurnRunEvent | undefined {
   switch (event.type) {
-    case ClientEventType.AssistantDelta:
+    case "assistantDelta":
       return event.content
         ? {
             messagePart: textPart("text", event.content.text),
@@ -317,7 +316,7 @@ function turnRunEventFromClientEvent(
             type: TurnRunEventType.Delta,
           }
         : undefined;
-    case ClientEventType.ReasoningDelta:
+    case "reasoningDelta":
       return event.content
         ? {
             messagePart: textPart("reasoning", event.content.text),
@@ -327,7 +326,7 @@ function turnRunEventFromClientEvent(
             type: TurnRunEventType.Delta,
           }
         : undefined;
-    case ClientEventType.ActionObserved:
+    case "actionObserved":
       return event.action
         ? {
             action: event.action,
@@ -335,7 +334,7 @@ function turnRunEventFromClientEvent(
             type: TurnRunEventType.ActionObserved,
           }
         : undefined;
-    case ClientEventType.ActionUpdated:
+    case "actionUpdated":
       return event.action
         ? {
             action: event.action,
@@ -343,15 +342,15 @@ function turnRunEventFromClientEvent(
             type: TurnRunEventType.ActionUpdated,
           }
         : undefined;
-    case ClientEventType.ElicitationOpened:
-    case ClientEventType.ElicitationUpdated:
+    case "elicitationOpened":
+    case "elicitationUpdated":
       return event.elicitation
         ? {
             elicitation: event.elicitation,
             type: TurnRunEventType.Elicitation,
           }
         : undefined;
-    case ClientEventType.PlanUpdated:
+    case "planUpdated":
       return event.plan
         ? {
             messagePart: {
@@ -363,7 +362,21 @@ function turnRunEventFromClientEvent(
             type: TurnRunEventType.PlanUpdated,
           }
         : undefined;
-    default:
+    case "availableCommandsUpdated":
+    case "contextUpdated":
+    case "conversationDiscovered":
+    case "conversationReady":
+    case "conversationUpdated":
+    case "historyUpdated":
+    case "log":
+    case "planDelta":
+    case "runtimeAuthRequired":
+    case "runtimeFaulted":
+    case "runtimeReady":
+    case "sessionUsageUpdated":
+    case "turnStarted":
+    case "turnSteered":
+    case "turnTerminal":
       return undefined;
   }
 }

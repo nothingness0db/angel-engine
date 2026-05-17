@@ -23,24 +23,7 @@ import type {
   ChatToolActionPhase as JsChatToolActionPhase,
   ChatToolCallPart as JsChatToolCallPart,
 } from "@angel-engine/js-client";
-import {
-  chatPartsText as jsChatPartsText,
-  cloneChatHistoryPart as cloneJsChatHistoryPart,
-  appendChatTextPart as appendJsChatTextPart,
-} from "@angel-engine/js-client/utils/messages";
-import {
-  chatPlanPartName as jsChatPlanPartName,
-  cloneChatPlanData as cloneJsChatPlanData,
-  isChatPlanData as isJsChatPlanData,
-  isChatPlanPart as isJsChatPlanPart,
-  normalizeChatPlanMessages as normalizeJsChatPlanMessages,
-  upsertChatPlanPart as upsertJsChatPlanPart,
-} from "@angel-engine/js-client/utils/plans";
-import {
-  chatToolActionToPart as jsChatToolActionToPart,
-  isChatToolAction as isJsChatToolAction,
-  isTerminalChatToolPhase,
-} from "@angel-engine/js-client/utils/tools";
+import { normalizeChatAttachmentsInput } from "@angel-engine/js-client/utils/attachments";
 import {
   cloneChatElicitation as cloneJsChatElicitation,
   isChatElicitationData as isJsChatElicitationData,
@@ -51,7 +34,24 @@ import {
   parseDataUrl,
   parseImageDataUrl,
 } from "@angel-engine/js-client/utils/media";
-import { normalizeChatAttachmentsInput } from "@angel-engine/js-client/utils/attachments";
+import {
+  appendChatTextPart as appendJsChatTextPart,
+  cloneChatHistoryPart as cloneJsChatHistoryPart,
+  chatPartsText as jsChatPartsText,
+} from "@angel-engine/js-client/utils/messages";
+import {
+  cloneChatPlanData as cloneJsChatPlanData,
+  isChatPlanData as isJsChatPlanData,
+  isChatPlanPart as isJsChatPlanPart,
+  chatPlanPartName as jsChatPlanPartName,
+  normalizeChatPlanMessages as normalizeJsChatPlanMessages,
+  upsertChatPlanPart as upsertJsChatPlanPart,
+} from "@angel-engine/js-client/utils/plans";
+import {
+  isChatToolAction as isJsChatToolAction,
+  isTerminalChatToolPhase,
+  chatToolActionToPart as jsChatToolActionToPart,
+} from "@angel-engine/js-client/utils/tools";
 
 export {
   imageDataUrl,
@@ -107,21 +107,8 @@ export interface ChatRuntimeConfig {
   reasoningEfforts: ChatRuntimeConfigOption[];
 }
 
-export type ChatToolAction = Omit<
-  JsChatToolAction,
-  "kind" | "output" | "outputText" | "rawInput" | "title" | "turnId"
-> & {
-  kind?: JsChatToolAction["kind"] | "elicitation" | string;
-  output?: ChatToolActionOutput[];
-  outputText?: string;
-  rawInput?: string | null;
-  title?: string | null;
-  turnId?: string;
-};
-
-export type ChatToolCallPart = Omit<JsChatToolCallPart, "artifact"> & {
-  artifact: ChatToolAction;
-};
+export type ChatToolAction = JsChatToolAction;
+export type ChatToolCallPart = JsChatToolCallPart;
 
 export interface ChatErrorData {
   message: string;
@@ -285,7 +272,7 @@ export const CHAT_STREAM_ELICITATION_RESOLVE_CHANNEL =
 export const CHAT_STREAM_START_CHANNEL = "chat:stream:start";
 
 export function chatToolActionToPart(action: ChatToolAction): ChatToolCallPart {
-  return jsChatToolActionToPart(action as JsChatToolAction) as ChatToolCallPart;
+  return jsChatToolActionToPart(action);
 }
 
 export function isChatToolAction(value: unknown): value is ChatToolAction {
@@ -310,9 +297,7 @@ export function cloneChatHistoryPart(
       type: "data",
     };
   }
-  return cloneJsChatHistoryPart(
-    part as JsChatHistoryMessagePart,
-  ) as ChatHistoryMessagePart;
+  return cloneJsChatHistoryPart(part as JsChatHistoryMessagePart);
 }
 
 export function chatPartsText(
@@ -348,9 +333,7 @@ export function cloneChatPlanData(data: ChatPlanData): ChatPlanData {
 export function normalizeChatPlanMessages(
   messages: ChatHistoryMessage[],
 ): ChatHistoryMessage[] {
-  return normalizeJsChatPlanMessages(
-    messages as JsChatHistoryMessage[],
-  ) as ChatHistoryMessage[];
+  return normalizeJsChatPlanMessages(messages as JsChatHistoryMessage[]);
 }
 
 export function cloneChatElicitation(data: ChatElicitation): ChatElicitation {

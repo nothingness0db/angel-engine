@@ -127,6 +127,7 @@ export function AssistantComposer({
   const aui = useAui();
   const api = useApi();
   const environment = useChatEnvironment();
+  const chatOptions = useChatOptions();
   const canCancel = useAuiState((state) => state.composer.canCancel);
   const isInputDisabled = useAuiState((state) => state.thread.isDisabled);
   const isRunning = useAuiState((state) => state.thread.isRunning);
@@ -139,7 +140,7 @@ export function AssistantComposer({
   const [fileSearchLoading, setFileSearchLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const projectToolsEnabled =
-    environment.isProjectChat && environment.projectPath;
+    environment.isProjectChat && environment.projectPath !== undefined;
   const mentionQuery = projectToolsEnabled
     ? mentionQueryFromDraft(draftText)
     : null;
@@ -156,6 +157,10 @@ export function AssistantComposer({
   );
   const slashCommandOpen = slashQuery !== null;
   const slashCommandsLoading = environment.availableCommandsLoading;
+  const hasFloatingAccessory =
+    floatingAccessory !== undefined &&
+    floatingAccessory !== null &&
+    floatingAccessory !== false;
 
   const handleSubmit = useCallback(
     async (message: PromptInputMessage) => {
@@ -165,6 +170,9 @@ export function AssistantComposer({
         message.files.length > 0 ||
         mentionedFiles.length > 0;
       if (!hasMessage) {
+        return;
+      }
+      if (chatOptions.configLoading) {
         return;
       }
 
@@ -182,7 +190,7 @@ export function AssistantComposer({
           ),
         ]);
 
-        await composer.send();
+        composer.send();
         setDraftText("");
         setMentionedFiles([]);
       } catch (error) {
@@ -190,14 +198,14 @@ export function AssistantComposer({
         throw error;
       }
     },
-    [aui, mentionedFiles, t],
+    [aui, chatOptions.configLoading, mentionedFiles, t],
   );
 
   useEffect(() => {
     if (
       !projectToolsEnabled ||
       mentionQuery === null ||
-      !environment.projectPath
+      environment.projectPath === undefined
     ) {
       setFileResults([]);
       setFileSearchLoading(false);
@@ -305,11 +313,12 @@ export function AssistantComposer({
         (event.key === "Enter" || event.key === "Tab") &&
         !event.shiftKey &&
         slashCommandOpen &&
-        (slashCommandsLoading || slashCommands[0])
+        (slashCommandsLoading || slashCommands[0] !== undefined)
       ) {
         event.preventDefault();
-        if (slashCommands[0]) {
-          insertSlashCommand(slashCommands[0]);
+        const firstCommand = slashCommands[0];
+        if (firstCommand !== undefined) {
+          insertSlashCommand(firstCommand);
         }
         return;
       }
@@ -318,20 +327,26 @@ export function AssistantComposer({
         (event.key === "Enter" || event.key === "Tab") &&
         !event.shiftKey &&
         fileMentionOpen &&
-        fileResults[0]
+        fileResults[0] !== undefined
       ) {
         event.preventDefault();
-        selectMentionedFile(fileResults[0]);
+        const firstFileResult = fileResults[0];
+        selectMentionedFile(firstFileResult);
         return;
       }
 
-      if (event.key === "Enter" && !event.shiftKey && isRunning) {
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey &&
+        (isRunning || chatOptions.configLoading)
+      ) {
         event.preventDefault();
       }
     },
     [
       aui,
       canCancel,
+      chatOptions.configLoading,
       fileMentionOpen,
       fileResults,
       insertSlashCommand,
@@ -350,12 +365,12 @@ export function AssistantComposer({
       onError={handleAttachmentError}
       onSubmit={handleSubmit}
     >
-      {floatingAccessory ? (
+      {hasFloatingAccessory ? (
         <div className="absolute top-0 left-3 z-30 -translate-y-1/2">
           {floatingAccessory}
         </div>
       ) : null}
-      {floatingAccessory ? (
+      {hasFloatingAccessory ? (
         <div aria-hidden="true" className="order-first h-4 w-full shrink-0" />
       ) : null}
 
@@ -417,9 +432,11 @@ function AssistantComposerHeader({
   }
 
   return (
-    <PromptInputHeader className="
+    <PromptInputHeader
+      className="
       flex-col items-stretch gap-2 px-3! pt-3! pb-2!
-    ">
+    "
+    >
       {hasQuote ? (
         <ComposerPrimitive.Quote
           className="
@@ -429,9 +446,11 @@ function AssistantComposerHeader({
           "
         >
           <Quote className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-          <ComposerPrimitive.QuoteText className="
+          <ComposerPrimitive.QuoteText
+            className="
             line-clamp-2 flex-1 text-muted-foreground
-          " />
+          "
+          />
           <ComposerPrimitive.QuoteDismiss className={iconButtonClass}>
             <X className="size-3.5" />
           </ComposerPrimitive.QuoteDismiss>
@@ -553,9 +572,11 @@ function SlashCommandAssistPanel({
   if (loading) {
     return (
       <AssistPanelFrame title={t("composer.commands")}>
-        <div className="
+        <div
+          className="
           flex items-center gap-2 p-2 text-sm text-muted-foreground
-        ">
+        "
+        >
           <Loader2 className="size-3.5 animate-spin" />
           <span>{t("composer.loadingCommands")}</span>
         </div>
@@ -578,38 +599,43 @@ function SlashCommandAssistPanel({
 
   return (
     <AssistPanelFrame title={t("composer.commands")}>
-      {commands.map((command) => (
-        <button
-          className={cn(
-            nativeControlRowClass,
-            `
-              flex w-full min-w-0 items-center gap-2 px-2 py-1.5 text-left
-              text-sm
-            `,
-          )}
-          key={command.name}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => onSelect(command)}
-          type="button"
-        >
-          <span className="shrink-0 font-mono text-xs text-primary">
-            /{command.name}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-muted-foreground">
-            {command.description}
-          </span>
-          {command.inputHint ? (
-            <span
-              className="
-                hidden shrink-0 truncate text-xs text-muted-foreground
-                sm:inline
-              "
-            >
-              {command.inputHint}
+      {commands.map((command) => {
+        const inputHint = command.inputHint;
+        return (
+          <button
+            className={cn(
+              nativeControlRowClass,
+              `
+                flex w-full min-w-0 items-center gap-2 px-2 py-1.5 text-left
+                text-sm
+              `,
+            )}
+            key={command.name}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => onSelect(command)}
+            type="button"
+          >
+            <span className="shrink-0 font-mono text-xs text-primary">
+              /{command.name}
             </span>
-          ) : null}
-        </button>
-      ))}
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+              {command.description}
+            </span>
+            {inputHint !== null &&
+            inputHint !== undefined &&
+            inputHint.length > 0 ? (
+              <span
+                className="
+                  hidden shrink-0 truncate text-xs text-muted-foreground
+                  sm:inline
+                "
+              >
+                {inputHint}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
     </AssistPanelFrame>
   );
 }
@@ -698,7 +724,9 @@ function AssistantComposerFooter({ draftText }: { draftText: string }) {
           }
           icon={<SlidersHorizontal />}
           label={t("composer.mode")}
-          onValueChange={chatOptions.setMode}
+          onValueChange={(value) => {
+            void chatOptions.setMode(value);
+          }}
           options={chatOptions.modeOptions}
           value={chatOptions.mode}
         />
@@ -725,7 +753,7 @@ function AssistantComposerFooter({ draftText }: { draftText: string }) {
             focus-visible:ring-0!
             active:translate-y-px
           "
-          disabled={isRunning || isEmpty}
+          disabled={isRunning || isEmpty || chatOptions.configLoading}
           size="sm"
           type="submit"
         >
@@ -1029,7 +1057,9 @@ function ComposerModelMenu({
               disabledReason={providerDisabledReason}
               key={provider.value}
               label={provider.label}
-              onSelect={async () => options.setRuntime(provider.value)}
+              onSelect={() => {
+                void options.setRuntime(provider.value);
+              }}
               selected={provider.value === options.runtime}
             />
           ))}
@@ -1095,9 +1125,11 @@ function ComposerModelMenu({
                 />
               ))
             ) : (
-              <div className="
+              <div
+                className="
                 px-2 py-5 text-center text-xs text-muted-foreground
-              ">
+              "
+              >
                 {t("composer.noModelsFound")}
               </div>
             )}
@@ -1136,9 +1168,11 @@ function ComposerModelMenu({
             type="button"
             variant="ghost"
           >
-            <SlidersHorizontal className="
+            <SlidersHorizontal
+              className="
               size-3.5 shrink-0 text-muted-foreground
-            " />
+            "
+            />
             <span className={composerModelMenuValueClassName}>
               {t("composer.agentSettings")}
             </span>
@@ -1170,7 +1204,9 @@ function ComposerModelMenu({
               <ComposerModelMenuItem
                 key={mode.value}
                 label={mode.label}
-                onSelect={async () => options.setMode(mode.value)}
+                onSelect={() => {
+                  void options.setMode(mode.value);
+                }}
                 selected={mode.value === options.mode}
               />
             ))}
@@ -1190,7 +1226,9 @@ function ComposerModelMenu({
               <ComposerModelMenuItem
                 key={mode.value}
                 label={mode.label}
-                onSelect={async () => options.setPermissionMode(mode.value)}
+                onSelect={() => {
+                  void options.setPermissionMode(mode.value);
+                }}
                 selected={mode.value === options.permissionMode}
               />
             ))}
@@ -1309,7 +1347,7 @@ function ComposerModelMenuSub({
 
   return (
     <DropdownMenuSub>
-      {disabled && disabledReason ? (
+      {disabled && disabledReason !== undefined ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="block rounded-lg">{trigger}</span>
@@ -1442,19 +1480,19 @@ function createAttachmentFromPromptFile(
   const path = promptFilePath(file);
   const isImage = mediaType.startsWith("image/");
 
-  if (!url || url.startsWith("blob:")) {
+  if (url === undefined || url.length === 0 || url.startsWith("blob:")) {
     throw new Error(t("composer.couldNotReadAttachment", { filename }));
   }
 
   const content = isImage
     ? {
-        ...(path ? { path } : {}),
+        ...(path !== undefined ? { path } : {}),
         filename,
         image: url,
         type: "image" as const,
       }
     : {
-        ...(path ? { path } : {}),
+        ...(path !== undefined ? { path } : {}),
         data: url,
         filename,
         mimeType: mediaType,
@@ -1472,7 +1510,8 @@ function createAttachmentFromPromptFile(
 function createMentionAttachment(
   file: ComposerMentionedFile,
 ): CreateAttachment {
-  if (!file.mimeType) {
+  const mimeType = file.mimeType;
+  if (mimeType === null || mimeType === undefined || mimeType.length === 0) {
     throw new Error(
       `Mentioned file is missing MIME type: ${file.relativePath}`,
     );
@@ -1481,13 +1520,13 @@ function createMentionAttachment(
     data: file.path,
     filename: file.name,
     mention: true,
-    mimeType: file.mimeType,
+    mimeType,
     path: file.path,
     type: "file" as const,
   };
   return {
     content: [content],
-    contentType: file.mimeType,
+    contentType: mimeType,
     name: file.name,
     type: "file",
   };

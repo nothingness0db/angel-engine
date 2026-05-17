@@ -100,6 +100,7 @@ function ToolGroupRoot({
 }
 
 function ToolGroupTrigger({
+  active,
   className,
   label,
   ...props
@@ -118,6 +119,7 @@ function ToolGroupTrigger({
         `,
         className,
       )}
+      data-active={active || undefined}
       data-slot="tool-group-trigger"
       {...props}
     >
@@ -211,27 +213,64 @@ function formatToolGroupLabel(
   endIndex: number,
   t: TFunction,
 ) {
-  let approvalCount = 0;
   let partCount = 0;
+  let singleToolPart: PartState | undefined;
 
   forEachToolGroupPart(parts, startIndex, endIndex, (part) => {
     partCount += 1;
-    if (isElicitationToolPart(part)) approvalCount += 1;
+    if (part.type === "tool-call") {
+      singleToolPart = singleToolPart ? undefined : part;
+    }
   });
 
-  const toolCount = Math.max(0, partCount - approvalCount);
+  const toolCount = Math.max(0, partCount);
+  if (toolCount === 1 && singleToolPart) {
+    return formatSingleToolGroupLabel(singleToolPart, t);
+  }
+
   const labels = [
     toolCount > 0
       ? t("components.toolGroup.toolCalls", { count: toolCount })
-      : undefined,
-    approvalCount > 0
-      ? t("components.toolGroup.approvals", { count: approvalCount })
       : undefined,
   ].filter(Boolean);
 
   return (
     labels.join(" · ") || t("components.toolGroup.toolCalls", { count: 0 })
   );
+}
+
+function formatSingleToolGroupLabel(part: PartState, t: TFunction) {
+  if (part.type !== "tool-call") {
+    return t("components.toolGroup.toolCalls", { count: 1 });
+  }
+
+  const action = isChatToolAction(part.artifact) ? part.artifact : undefined;
+  const title = action?.title || action?.inputSummary || part.toolName;
+  const phase = action?.phase ?? part.status.type;
+  return `${title} · ${formatToolGroupPhase(phase, t)}`;
+}
+
+function formatToolGroupPhase(phase: string, t: TFunction) {
+  switch (phase) {
+    case "awaitingDecision":
+      return t("messages.tool.phase.awaitingDecision");
+    case "streamingResult":
+      return t("messages.tool.phase.streamingResult");
+    case "completed":
+      return t("common.completed");
+    case "failed":
+      return t("common.failed");
+    case "declined":
+      return t("common.declined");
+    case "cancelled":
+      return t("common.cancelled");
+    case "running":
+      return t("common.running");
+    case "proposed":
+      return t("common.proposed");
+    default:
+      return phase;
+  }
 }
 
 function hasActiveToolGroupPart(
@@ -281,14 +320,6 @@ function isActiveToolPart(part: PartState) {
 
   return (
     part.status.type === "running" || part.status.type === "requires-action"
-  );
-}
-
-function isElicitationToolPart(part: PartState) {
-  return (
-    part.type === "tool-call" &&
-    isChatToolAction(part.artifact) &&
-    part.artifact.kind === "elicitation"
   );
 }
 

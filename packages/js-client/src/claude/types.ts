@@ -21,7 +21,7 @@ export type ClaudeElicitationResponse =
   | { type: "raw"; value: string };
 
 export type ClaudeCodeSendTextRequest = SendTextRequest & {
-  input: NonNullable<SendTextRequest["input"]>;
+  input?: NonNullable<SendTextRequest["input"]>;
   onEvent?: (event: TurnRunEvent) => void;
   onResolveElicitation?: (
     handler: (

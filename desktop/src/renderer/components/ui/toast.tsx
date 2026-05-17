@@ -67,9 +67,11 @@ function ToastProvider({ children }: { children: React.ReactNode }) {
                   {toast.title}
                 </ToastPrimitive.Title>
                 {toast.description ? (
-                  <ToastPrimitive.Description className="
+                  <ToastPrimitive.Description
+                    className="
                     mt-1 text-xs text-muted-foreground
-                  ">
+                  "
+                  >
                     {toast.description}
                   </ToastPrimitive.Description>
                 ) : null}

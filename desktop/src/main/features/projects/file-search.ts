@@ -5,8 +5,8 @@ import type {
 } from "../../../shared/chat";
 import fs from "node:fs/promises";
 
-import { lookup } from "mime-types";
 import path from "node:path";
+import { lookup } from "mime-types";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;

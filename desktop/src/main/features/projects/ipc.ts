@@ -98,9 +98,10 @@ export const projectIpcRouter = {
       return new Promise<"cancelled" | "deleted" | "opened">((resolve) => {
         const menu = Menu.buildFromTemplate([
           {
-            click: async () => {
-              await shell.openPath(project.path);
-              resolve("opened");
+            click: () => {
+              void shell.openPath(project.path).finally(() => {
+                resolve("opened");
+              });
             },
             label: translate("projects.openInFinder"),
           },

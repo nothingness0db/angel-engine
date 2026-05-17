@@ -1,6 +1,6 @@
-import type { ChatJsonObject } from "../types.js";
 import type { ClaudeToolInput } from "./sdk-types.js";
 import type { ActiveClaudeTurn } from "./types.js";
+import type { SessionUpdate, ToolKind } from "@agentclientprotocol/sdk";
 
 import {
   EngineEventActionKind,
@@ -9,6 +9,15 @@ import {
 import is from "@sindresorhus/is";
 import { isClaudePlanToolUse } from "./plan.js";
 import { CLAUDE_TOOL } from "./sdk-types.js";
+
+type AcpHistoryToolCall = Extract<
+  SessionUpdate,
+  { sessionUpdate: "tool_call" }
+>;
+type AcpHistoryToolCallUpdate = Extract<
+  SessionUpdate,
+  { sessionUpdate: "tool_call_update" }
+>;
 
 export function actionKind(
   toolName: string,
@@ -144,10 +153,10 @@ export function claudeHistoryToolCall(
   toolId: string,
   toolName: string,
   input: ClaudeToolInput,
-): ChatJsonObject {
+): AcpHistoryToolCall {
   return {
     kind: acpHistoryToolKind(toolName, input),
-    rawInput: input as ChatJsonObject,
+    rawInput: input,
     sessionUpdate: "tool_call",
     status: "in_progress",
     title: toolTitle(toolName, input),
@@ -161,7 +170,7 @@ export function claudeHistoryToolResult(input: {
   isError?: boolean;
   toolId: string;
   toolName?: string;
-}): ChatJsonObject {
+}): AcpHistoryToolCallUpdate {
   if (!is.nonEmptyString(input.toolName)) {
     throw new Error("Claude history tool result is missing toolName.");
   }
@@ -172,10 +181,9 @@ export function claudeHistoryToolResult(input: {
     throw new Error("Claude history tool error is missing content.");
   }
   return {
-    content: output,
-    ...(input.isError ? { error: output } : {}),
     kind: acpHistoryToolKind(toolName, rawInput),
-    ...(rawInput ? { rawInput: rawInput as ChatJsonObject } : {}),
+    rawOutput: output,
+    ...(rawInput ? { rawInput } : {}),
     sessionUpdate: "tool_call_update",
     status: input.isError ? "failed" : "completed",
     title: rawInput ? toolTitle(toolName, rawInput) : toolName,
@@ -183,21 +191,28 @@ export function claudeHistoryToolResult(input: {
   };
 }
 
-function acpHistoryToolKind(toolName: string, input?: ClaudeToolInput): string {
+function acpHistoryToolKind(
+  toolName: string,
+  input?: ClaudeToolInput,
+): ToolKind {
   switch (actionKind(toolName, input)) {
-    case EngineEventActionKind.Command:
+    case "command":
       return "execute";
-    case EngineEventActionKind.Read:
+    case "read":
       return "read";
-    case EngineEventActionKind.Write:
-    case EngineEventActionKind.FileChange:
+    case "write":
+    case "file_change":
       return "edit";
-    case EngineEventActionKind.WebSearch:
+    case "web_search":
       return "search";
-    case EngineEventActionKind.Reasoning:
-    case EngineEventActionKind.Plan:
+    case "reasoning":
+    case "plan":
       return "think";
-    default:
+    case "dynamic_tool":
+    case "host_capability":
+    case "mcp_tool":
+    case "media":
+    case "sub_agent":
       return "fetch";
   }
 }

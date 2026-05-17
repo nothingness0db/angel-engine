@@ -123,7 +123,7 @@ function applySettingsSideEffects(message: SettingsBroadcastMessage) {
 }
 
 function readBroadcastMessage(value: unknown): SettingsBroadcastMessage | null {
-  if (!value || typeof value !== "object") return null;
+  if (value === null || typeof value !== "object") return null;
   const input = value as Partial<SettingsBroadcastMessage>;
   if (typeof input.senderId !== "string") return null;
 
@@ -138,9 +138,15 @@ function readBroadcastMessage(value: unknown): SettingsBroadcastMessage | null {
 function readAgentSettings() {
   try {
     const raw = window.localStorage.getItem(agentSettingsStorageKey);
-    return sanitizeAgentSettings(raw ? JSON.parse(raw) : undefined);
+    const settings = sanitizeAgentSettings(
+      raw !== null ? JSON.parse(raw) : undefined,
+    );
+    writeAgentSettings(settings);
+    return settings;
   } catch {
-    return sanitizeAgentSettings(undefined);
+    const settings = sanitizeAgentSettings(undefined);
+    writeAgentSettings(settings);
+    return settings;
   }
 }
 
