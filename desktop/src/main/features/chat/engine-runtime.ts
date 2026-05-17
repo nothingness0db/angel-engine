@@ -32,6 +32,7 @@ import type {
 } from "../../../shared/chat";
 
 import type { ChatRuntime } from "./runtime";
+import fs from "node:fs";
 import path from "node:path";
 
 import {
@@ -261,7 +262,11 @@ export async function streamChat(
     remoteId: chat.remoteThreadId ?? undefined,
     signal: abortSignal,
     input: chatAttachmentsToClientInput(attachments),
-    text: input.text,
+    text: appendSessionContext(
+      input.text,
+      chat.createdAt,
+      input.projectId ? cwdForChat(chat, input.projectId) : undefined,
+    ),
   });
 
   if (input.text) {
@@ -851,3 +856,43 @@ export type {
   ChatRuntimeConfig as EngineRuntimeConfig,
   TurnRunResult as RunTurnResult,
 };
+}
+
+function appendSessionContext(
+  text: string,
+  chatCreatedAt: string,
+  projectCwd?: string,
+): string {
+  const startedAt = new Date(chatCreatedAt);
+  const ms = Date.now() - startedAt.getTime();
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+  const now = new Date().toISOString();
+  const elapsed = parts.join(" ");
+  const fileTree = projectCwd ? scanProjectFiles(projectCwd) : null;
+  const treeSection = fileTree ? `\nProject files:\n${fileTree}` : "";
+  return `${text}\n\n[Session context — current time: ${now}, conversation elapsed: ${elapsed}${treeSection}]`;
+}
+
+const SCAN_IGNORE = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  "out",
+  ".turbo",
+  ".cache",
+  "coverage",
+  "__pycache__",
+  ".venv",
+  "target",
+]);
+
+function scanProjectFiles(dir: string, depth = 0, prefix = ""): string {
