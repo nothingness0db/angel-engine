@@ -4,7 +4,7 @@ import type {
   ClaudeToolInput,
   ClaudeTodoWriteInput,
 } from "./sdk-types.js";
-import type { ChatJsonObject } from "../types.js";
+import type { ChatJsonObject } from "@angel-engine/js-client";
 import type { ActiveClaudeTurn, EngineEventJson } from "./types.js";
 
 import { homedir } from "node:os";

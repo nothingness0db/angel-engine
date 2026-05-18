@@ -14,10 +14,6 @@ export default defineConfig({
         packageRoot,
         "src/assistant-ui.ts",
       ),
-      "@angel-engine/js-client/claude": path.join(
-        packageRoot,
-        "src/claude/index.ts",
-      ),
       "@angel-engine/js-client/mock": path.join(packageRoot, "src/mock.ts"),
       "@angel-engine/js-client/projection": path.join(
         packageRoot,

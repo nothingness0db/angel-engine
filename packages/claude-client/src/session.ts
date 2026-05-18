@@ -48,8 +48,12 @@ import {
   EngineEventType,
 } from "@angel-engine/client-napi";
 import is from "@sindresorhus/is";
-import { emptyUpdate } from "../utils/client-update.js";
-import { abortError, errorMessage, throwIfAborted } from "../utils/errors.js";
+import { emptyUpdate } from "@angel-engine/js-client/utils/client-update";
+import {
+  abortError,
+  errorMessage,
+  throwIfAborted,
+} from "@angel-engine/js-client/utils/errors";
 import { ClaudeCodeEngineAdapter } from "./adapter.js";
 import { contextPatch, contextUpdated } from "./context.js";
 import {
@@ -300,6 +304,8 @@ export class ClaudeCodeSession {
       ),
       includePartialMessages: true,
       model: request.model ?? this.currentModel,
+      pathToClaudeCodeExecutable:
+        process.env.CLAUDE_CODE_PATH ?? process.env.CLAUDE_PATH ?? "claude",
       permissionMode: normalizeClaudeMode(
         request.permissionMode ?? this.currentPermissionMode,
       ),

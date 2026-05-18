@@ -10,6 +10,7 @@ import type {
   TurnRunEvent,
   TurnRunResult,
 } from "@angel-engine/client-napi";
+import { ClaudeCodeSession } from "@angel-engine/claude-client";
 import type { ProjectedTurnEvent } from "@angel-engine/js-client/projection";
 import type {
   Chat,
@@ -41,7 +42,6 @@ import {
   AngelSession as NativeAngelSession,
   TurnRunEventType,
 } from "@angel-engine/client-napi";
-import { ClaudeCodeSession } from "@angel-engine/js-client/claude";
 import {
   conversationMessages,
   projectTurnRunEvent,
@@ -128,7 +128,9 @@ export async function loadChatSession(chatId: string): Promise<ChatLoadResult> {
     return { chat, messages: [] };
   }
 
-  const snapshot = await getChatSession(chat).hydrate({
+  const snapshot = await (
+    await getChatSession(chat)
+  ).hydrate({
     cwd,
     remoteId: chat.remoteThreadId ?? undefined,
   });
@@ -144,7 +146,7 @@ export async function loadChatSession(chatId: string): Promise<ChatLoadResult> {
 export async function inspectChatRuntimeConfig(
   input: ChatRuntimeConfigInput,
 ): Promise<ChatRuntimeConfig> {
-  const session = createChatSession(input.runtime);
+  const session = await createChatSession(input.runtime);
   try {
     return runtimeConfigFromConversationSnapshot(
       await session.inspect(input.cwd ?? standaloneChatCwd()),
@@ -165,7 +167,9 @@ export async function setChatMode(
   input: ChatSetModeInput,
 ): Promise<ChatSetModeResult> {
   const chat = requireChat(input.chatId);
-  const snapshot = await getChatSession(chat).setMode({
+  const snapshot = await (
+    await getChatSession(chat)
+  ).setMode({
     cwd: cwdForChat(chat),
     mode: input.mode,
     remoteId: chat.remoteThreadId ?? undefined,
@@ -181,7 +185,9 @@ export async function setChatPermissionMode(
   input: ChatSetPermissionModeInput,
 ): Promise<ChatSetPermissionModeResult> {
   const chat = requireChat(input.chatId);
-  const snapshot = await getChatSession(chat).setPermissionMode({
+  const snapshot = await (
+    await getChatSession(chat)
+  ).setPermissionMode({
     cwd: cwdForChat(chat),
     mode: input.mode,
     remoteId: chat.remoteThreadId ?? undefined,
@@ -217,7 +223,7 @@ export async function prewarmChat(
     return chatPrewarmResult(existing);
   }
 
-  const prewarm = createChatPrewarm(input, key);
+  const prewarm = await createChatPrewarm(input, key);
   chatPrewarms.set(key, prewarm);
   trimChatPrewarms();
   await prewarm.promise;
@@ -235,7 +241,7 @@ export async function streamChat(
     throw new Error("Chat text or attachment is required.");
   }
 
-  const preparedChat = prepareChatForSend(input);
+  const preparedChat = await prepareChatForSend(input);
   const { chat, isNewChat, session } = preparedChat;
   if (isNewChat) {
     onEvent?.({ chat, type: "chat" });
@@ -293,16 +299,18 @@ export function closeChatSession(chatId?: string) {
   closeChatPrewarms();
 }
 
-function getChatSession(chat: Chat) {
+async function getChatSession(chat: Chat): Promise<DesktopChatSession> {
   const existing = chatSessions.get(chat.id);
   if (existing) return existing;
 
-  const session = createChatSession(chat.runtime);
+  const session = await createChatSession(chat.runtime);
   chatSessions.set(chat.id, session);
   return session;
 }
 
-function createChatSession(runtime?: string): DesktopChatSession {
+async function createChatSession(
+  runtime?: string,
+): Promise<DesktopChatSession> {
   if (runtime === "claude") {
     return new ClaudeCodeSession();
   }
@@ -363,14 +371,14 @@ function attachmentUri(attachment: ChatAttachmentInput) {
   return `attachment:///${encodeURIComponent(name)}`;
 }
 
-function prepareChatForSend(input: ChatSendInput): {
+async function prepareChatForSend(input: ChatSendInput): Promise<{
   chat: Chat;
   isNewChat: boolean;
   session: DesktopChatSession;
-} {
+}> {
   if (input.chatId) {
     const chat = requireChat(input.chatId);
-    return { chat, isNewChat: false, session: getChatSession(chat) };
+    return { chat, isNewChat: false, session: await getChatSession(chat) };
   }
 
   const prewarm = input.prewarmId
@@ -392,7 +400,7 @@ function prepareChatForSend(input: ChatSendInput): {
     projectId: input.projectId,
     runtime: input.runtime,
   });
-  return { chat, isNewChat: true, session: getChatSession(chat) };
+  return { chat, isNewChat: true, session: await getChatSession(chat) };
 }
 
 function persistRemoteThreadId(chat: Chat, snapshot: ConversationSnapshot) {
@@ -438,8 +446,11 @@ function isReadyChatPrewarm(prewarm: ChatPrewarm): prewarm is ReadyChatPrewarm {
   return Boolean(prewarm.config && prewarm.snapshot);
 }
 
-function createChatPrewarm(input: ChatPrewarmInput, key: string): ChatPrewarm {
-  const session = createChatSession(input.runtime);
+async function createChatPrewarm(
+  input: ChatPrewarmInput,
+  key: string,
+): Promise<ChatPrewarm> {
+  const session = await createChatSession(input.runtime);
   const cwd = cwdForProjectOrStandalone(input.projectId);
   const prewarm: ChatPrewarm = {
     closed: false,

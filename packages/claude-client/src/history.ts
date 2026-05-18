@@ -1,5 +1,5 @@
 import type { SessionMessage } from "@anthropic-ai/claude-agent-sdk";
-import type { ChatJsonObject, ChatJsonValue } from "../types.js";
+import type { ChatJsonObject, ChatJsonValue } from "@angel-engine/js-client";
 import type { ClaudeToolInput } from "./sdk-types.js";
 import type { EngineEventJson } from "./types.js";
 

@@ -14,18 +14,6 @@
       "types": "./dist/assistant-ui.d.ts",
       "default": "./dist/assistant-ui.js"
     },
-    "./claude": {
-      "types": "./dist/claude/index.d.ts",
-      "default": "./dist/claude/index.js"
-    },
-    "./claude/adapter": {
-      "types": "./dist/claude/adapter.d.ts",
-      "default": "./dist/claude/adapter.js"
-    },
-    "./claude/context": {
-      "types": "./dist/claude/context.d.ts",
-      "default": "./dist/claude/context.js"
-    },
     "./mock": {
       "types": "./dist/mock.d.ts",
       "default": "./dist/mock.js"

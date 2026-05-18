@@ -1,21 +1,15 @@
 import type { SendTextRequest } from "@angel-engine/client-napi";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
-import type { ChatJsonObject } from "../types.js";
-import type { ClaudeSdkModule } from "./types.js";
+import type { ChatJsonObject } from "@angel-engine/js-client";
+export { loadClaudeSdk } from "./sdk-loader.js";
 import is from "@sindresorhus/is";
 import { claudeEffortLevelIds, claudePermissionModeIds } from "./utils.js";
 
 type ClientInput = NonNullable<SendTextRequest["input"]>[number];
 
-let claudeSdkPromise: Promise<ClaudeSdkModule> | undefined;
 let claudePermissionModesPromise: Promise<string[]> | undefined;
 let claudeEffortLevelsPromise: Promise<string[]> | undefined;
-
-export async function loadClaudeSdk(): Promise<ClaudeSdkModule> {
-  claudeSdkPromise ??= import("@anthropic-ai/claude-agent-sdk");
-  return claudeSdkPromise;
-}
 
 export async function loadClaudePermissionModeIds(): Promise<string[]> {
   claudePermissionModesPromise ??= Promise.resolve(claudePermissionModeIds());

@@ -17,6 +17,8 @@
     "desktop:make": "turbo run make --filter desktop",
     "desktop:typecheck": "turbo run typecheck --filter desktop",
     "desktop:rebuild-native": "pnpm --filter desktop rebuild:native",
+    "claude-client:build": "turbo run build --filter @angel-engine/claude-client",
+    "claude-client:test": "turbo run test --filter @angel-engine/claude-client",
     "js-client:build": "turbo run build --filter @angel-engine/js-client",
     "js-client:playground": "pnpm --filter @angel-engine/js-client playground",
     "js-client:playground:build": "turbo run playground:build --filter @angel-engine/js-client",

@@ -6,7 +6,7 @@ import type {
   ClaudeSdkToolInput,
   ClaudeToolInput,
 } from "./sdk-types.js";
-import type { ChatJsonObject } from "../types.js";
+import type { ChatJsonObject } from "@angel-engine/js-client";
 import type { ClaudeElicitationResponse } from "./types.js";
 import { EngineEventElicitationKind } from "@angel-engine/client-napi";
 import is from "@sindresorhus/is";

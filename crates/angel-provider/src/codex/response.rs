@@ -455,8 +455,15 @@ fn append_local_rollout_history(
         return false;
     };
 
+    append_local_rollout_history_content(output, conversation_id, &content)
+}
+
+fn append_local_rollout_history_content(
+    output: &mut TransportOutput,
+    conversation_id: &ConversationId,
+    content: &str,
+) -> bool {
     let mut appended = 0usize;
-    let mut has_structured_history = false;
     let mut replay_tool_titles = BTreeMap::new();
     for line in content.lines() {
         let Ok(record) = serde_json::from_str::<Value>(line) else {
@@ -469,7 +476,6 @@ fn append_local_rollout_history(
         if content_delta_is_empty(&content) {
             continue;
         }
-        has_structured_history |= matches!(role, HistoryRole::Reasoning | HistoryRole::Tool);
         output.events.push(EngineEvent::HistoryReplayChunk {
             conversation_id: conversation_id.clone(),
             entry: HistoryReplayEntry {
@@ -481,7 +487,7 @@ fn append_local_rollout_history(
         appended += 1;
     }
 
-    appended > 0 && has_structured_history
+    appended > 0
 }
 
 fn find_local_rollout_path(thread_id: &str) -> Option<PathBuf> {
@@ -516,21 +522,17 @@ fn codex_rollout_history_entry(
     record: &Value,
 ) -> Option<(HistoryRole, ContentDelta, Option<HistoryReplayToolAction>)> {
     match record.get("type").and_then(Value::as_str)? {
-        "event_msg" => {
-            let payload = record.get("payload")?;
-            if payload.get("type").and_then(Value::as_str) != Some("user_message") {
-                return None;
-            }
-            let message = payload.get("message").and_then(Value::as_str)?;
-            Some((
-                HistoryRole::User,
-                ContentDelta::Text(message.to_string()),
-                None,
-            ))
-        }
+        // Codex rollout also writes chat messages as response_item records; replay that channel only.
+        "event_msg" => None,
         "response_item" => {
             let payload = record.get("payload")?;
             match payload.get("type").and_then(Value::as_str) {
+                Some("message") if payload.get("role").and_then(Value::as_str) == Some("user") => {
+                    if codex_rollout_is_environment_context_message(payload) {
+                        return None;
+                    }
+                    Some((HistoryRole::User, codex_content_delta(payload), None))
+                }
                 Some("message")
                     if payload.get("role").and_then(Value::as_str) == Some("assistant") =>
                 {
@@ -566,6 +568,26 @@ fn codex_rollout_history_entry(
         }
         _ => None,
     }
+}
+
+fn codex_rollout_is_environment_context_message(payload: &Value) -> bool {
+    payload
+        .get("content")
+        .and_then(Value::as_array)
+        .is_some_and(|parts| {
+            let [part] = parts.as_slice() else {
+                return false;
+            };
+            part.get("type").and_then(Value::as_str) == Some("input_text")
+                && part
+                    .get("text")
+                    .and_then(Value::as_str)
+                    .is_some_and(|text| {
+                        let trimmed = text.trim();
+                        trimmed.starts_with("<environment_context>")
+                            && trimmed.ends_with("</environment_context>")
+                    })
+        })
 }
 
 fn append_hydrated_turns(
@@ -1804,6 +1826,55 @@ mod tests {
             Some(&ActionKind::Command)
         );
         assert_eq!(replay[3].role, HistoryRole::Assistant);
+    }
+
+    #[test]
+    fn rollout_history_ignores_event_user_message_channel() {
+        let conversation_id = ConversationId::new("conv");
+        let mut output = TransportOutput::default();
+        let content = r#"{"timestamp":"2026-05-17T23:55:29.683Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>\n  <cwd>/Users/akrc</cwd>\n  <shell>zsh</shell>\n  <current_date>2026-05-18</current_date>\n  <timezone>Asia/Shanghai</timezone>\n</environment_context>"}]}}
+{"timestamp":"2026-05-17T23:55:29.782Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"你好"}]}}
+{"timestamp":"2026-05-17T23:55:29.782Z","type":"event_msg","payload":{"type":"user_message","message":"你好","images":[],"local_images":[],"text_elements":[]}}
+{"timestamp":"2026-05-17T23:55:31.725Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"你好。你想让我帮你处理什么？"}]}}"#;
+
+        let has_local_history =
+            append_local_rollout_history_content(&mut output, &conversation_id, content);
+        let replay = output
+            .events
+            .iter()
+            .filter_map(|event| match event {
+                EngineEvent::HistoryReplayChunk { entry, .. } => Some(entry),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert!(has_local_history);
+        assert_eq!(replay.len(), 2);
+        assert_eq!(replay[0].role, HistoryRole::User);
+        assert!(matches!(
+            &replay[0].content,
+            ContentDelta::Text(text) if text == "你好"
+        ));
+        assert_eq!(replay[1].role, HistoryRole::Assistant);
+    }
+
+    #[test]
+    fn rollout_history_drops_event_user_message_without_response_item() {
+        let conversation_id = ConversationId::new("conv");
+        let mut output = TransportOutput::default();
+        let content = r#"{"timestamp":"2026-05-17T23:55:29.782Z","type":"event_msg","payload":{"type":"user_message","message":"你好","images":[],"local_images":[],"text_elements":[]}}
+{"timestamp":"2026-05-17T23:55:30.000Z","type":"event_msg","payload":{"type":"user_message","message":"你好","images":[],"local_images":[],"text_elements":[]}}"#;
+
+        let has_local_history =
+            append_local_rollout_history_content(&mut output, &conversation_id, content);
+        let replay = output
+            .events
+            .iter()
+            .filter(|event| matches!(event, EngineEvent::HistoryReplayChunk { .. }))
+            .collect::<Vec<_>>();
+
+        assert!(!has_local_history);
+        assert_eq!(replay.len(), 0);
     }
 
     #[test]

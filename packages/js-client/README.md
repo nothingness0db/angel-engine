@@ -69,28 +69,6 @@ import {
 } from "@angel-engine/js-client/assistant-ui";
 ```
 
-### `@angel-engine/js-client/claude`
-
-Claude Code runtime adapter and narrowly scoped Claude helpers shared by
-desktop dogfooding:
-
-- `@angel-engine/js-client/claude/adapter`: `ClaudeCodeEngineAdapter`
-- `@angel-engine/js-client/claude/context`: `contextPatch`, `contextUpdated`
-- `@angel-engine/js-client/utils/client-update`: `emptyUpdate`
-- `@angel-engine/js-client/utils/errors`: `errorMessage`, `abortError`, `throwIfAborted`
-
-```ts
-import { ClaudeCodeEngineAdapter } from "@angel-engine/js-client/claude/adapter";
-import { contextUpdated } from "@angel-engine/js-client/claude/context";
-import {
-  abortError,
-  throwIfAborted,
-} from "@angel-engine/js-client/utils/errors";
-```
-
-Keep Claude SDK option policy, permission UI handling, and desktop session
-lifetime in desktop. This entry should only contain reusable adapter mechanics.
-
 ### `@angel-engine/js-client/mock`
 
 Mock transport/client helpers for local UI development and tests.

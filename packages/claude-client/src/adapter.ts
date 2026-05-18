@@ -5,7 +5,7 @@ import type {
 } from "@angel-engine/client-napi";
 import { AcpAdapter, ClientProtocol } from "@angel-engine/client-napi";
 import is from "@sindresorhus/is";
-import type { ChatJsonValue } from "../types.js";
+import type { ChatJsonValue } from "@angel-engine/js-client";
 import { contextPatch, contextUpdated } from "./context.js";
 
 type MutableJsonObject = { [key: string]: ChatJsonValue };
