@@ -528,6 +528,9 @@ fn content_delta(value: &Value) -> ContentDelta {
 }
 
 fn content_parts(value: &Value) -> Option<Vec<ContentPart>> {
+    if let Some(text) = value.as_str() {
+        return acp_text_attachment_part(text).map(|part| vec![part]);
+    }
     if let Some(items) = value.as_array() {
         return Some(items.iter().filter_map(content_part).collect());
     }
@@ -536,10 +539,9 @@ fn content_parts(value: &Value) -> Option<Vec<ContentPart>> {
 
 fn content_part(value: &Value) -> Option<ContentPart> {
     match value.get("type").and_then(Value::as_str) {
-        Some("text") => value
-            .get("text")
-            .and_then(Value::as_str)
-            .map(|text| ContentPart::text(text.to_string())),
+        Some("text") => value.get("text").and_then(Value::as_str).map(|text| {
+            acp_text_attachment_part(text).unwrap_or_else(|| ContentPart::text(text.to_string()))
+        }),
         Some("image") => {
             let data = value.get("data").and_then(Value::as_str)?.to_string();
             let mime_type = value
@@ -583,6 +585,42 @@ fn content_part(value: &Value) -> Option<ContentPart> {
         }
         _ => None,
     }
+}
+
+fn acp_text_attachment_part(text: &str) -> Option<ContentPart> {
+    parse_attached_text_resource(text).or_else(|| parse_resource_text(text))
+}
+
+fn parse_attached_text_resource(text: &str) -> Option<ContentPart> {
+    let (header, data) = text.split_once("\n\n")?;
+    if data.is_empty() {
+        return None;
+    }
+    let mut lines = header.lines();
+    let uri = lines.next()?.strip_prefix("Attached text resource: ")?;
+    let mut mime_type = "text/plain";
+    for line in lines {
+        if let Some(value) = line.strip_prefix("MIME type: ")
+            && !value.trim().is_empty()
+        {
+            mime_type = value;
+        }
+    }
+    Some(ContentPart::file(
+        data.to_string(),
+        mime_type.to_string(),
+        decoded_file_name_from_uri(uri),
+    ))
+}
+
+fn parse_resource_text(text: &str) -> Option<ContentPart> {
+    let (header, data) = text.split_once("\n\n")?;
+    if data.is_empty() {
+        return None;
+    }
+    let uri = header.strip_prefix("Resource: ")?;
+    let name = decoded_file_name_from_uri(uri);
+    Some(ContentPart::file(data.to_string(), "text/plain", name))
 }
 
 fn resource_mime_type(resource: &Value) -> String {

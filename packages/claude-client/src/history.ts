@@ -197,6 +197,29 @@ function userTextContentParts(text: string): HistoryContentPart[] {
 function claudeAttachmentTextPart(
   text: string,
 ): HistoryContentPart | undefined {
+  return claudeAttachedTextResourcePart(text) ?? claudeResourceTextPart(text);
+}
+
+function claudeAttachedTextResourcePart(
+  text: string,
+): HistoryContentPart | undefined {
+  const match =
+    /^Attached text resource: (?<uri>\S+)\r?\nMIME type: (?<mimeType>[^\r\n]+)\r?\n\r?\n/.exec(
+      text,
+    );
+  if (!match?.groups?.uri || !match.groups.mimeType.trim()) return undefined;
+  const data = text.slice(match[0].length);
+  if (!data) return undefined;
+  return {
+    File: {
+      data,
+      mime_type: match.groups.mimeType.trim(),
+      name: decodedFileNameFromUri(match.groups.uri),
+    },
+  };
+}
+
+function claudeResourceTextPart(text: string): HistoryContentPart | undefined {
   const match = /^Resource: (?<uri>\S+)\r?\n\r?\n/.exec(text);
   if (!match?.groups?.uri) return undefined;
   const data = text.slice(match[0].length);
