@@ -27,7 +27,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup && node scripts/patch-claude-sdk-bundle.mjs",
+    "build": "tsup",
     "lint": "eslint src",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

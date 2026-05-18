@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  "@anthropic-ai/claude-agent-sdk@0.2.141": f8f60042768be19cd0e3b76f516c07eccb2295c9bf84f37822159d40ea4e191f
+
 importers:
   .:
     devDependencies:
@@ -39,7 +42,7 @@ importers:
         version: link:../packages/js-client
       "@anthropic-ai/claude-agent-sdk":
         specifier: ^0.2.133
-        version: 0.2.141(zod@4.4.3)
+        version: 0.2.141(patch_hash=f8f60042768be19cd0e3b76f516c07eccb2295c9bf84f37822159d40ea4e191f)(zod@4.4.3)
       "@assistant-ui/react":
         specifier: ^0.12.28
         version: 0.12.28(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
@@ -296,7 +299,7 @@ importers:
         version: link:../../crates/angel-engine-client-napi
       "@anthropic-ai/claude-agent-sdk":
         specifier: ^0.2.133
-        version: 0.2.141(zod@4.4.3)
+        version: 0.2.141(patch_hash=f8f60042768be19cd0e3b76f516c07eccb2295c9bf84f37822159d40ea4e191f)(zod@4.4.3)
       "@typescript-eslint/eslint-plugin":
         specifier: ^8.59.2
         version: 8.59.3(@typescript-eslint/parser@8.59.3(eslint@10.4.0(jiti@2.7.0))(typescript@6.0.3))(eslint@10.4.0(jiti@2.7.0))(typescript@6.0.3)
@@ -333,7 +336,7 @@ importers:
         version: link:../../crates/angel-engine-client-napi
       "@anthropic-ai/claude-agent-sdk":
         specifier: ^0.2.133
-        version: 0.2.141(zod@4.4.3)
+        version: 0.2.141(patch_hash=f8f60042768be19cd0e3b76f516c07eccb2295c9bf84f37822159d40ea4e191f)(zod@4.4.3)
       "@assistant-ui/react":
         specifier: ^0.12.28
         version: 0.12.28(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
@@ -14552,7 +14555,7 @@ snapshots:
   "@anthropic-ai/claude-agent-sdk-win32-x64@0.2.141":
     optional: true
 
-  "@anthropic-ai/claude-agent-sdk@0.2.141(zod@4.4.3)":
+  "@anthropic-ai/claude-agent-sdk@0.2.141(patch_hash=f8f60042768be19cd0e3b76f516c07eccb2295c9bf84f37822159d40ea4e191f)(zod@4.4.3)":
     dependencies:
       "@anthropic-ai/sdk": 0.93.0(zod@4.4.3)
       "@modelcontextprotocol/sdk": 1.29.0(zod@4.4.3)

@@ -157,6 +157,13 @@ protocol-neutral engine concept by an adapter.
   or the current working directory unless the user explicitly asks for a
   checked-in artifact.
 
+## Package Manager Files
+
+- Do not edit `pnpm-lock.yaml` by hand. Any lockfile changes must be produced by
+  pnpm commands such as `pnpm install`, `pnpm patch`, or `pnpm patch-commit`.
+- After pnpm changes workspace metadata or lockfiles, run the repository
+  formatter instead of manually preserving or rewriting pnpm's formatting.
+
 ## Verification
 
 Common gates:

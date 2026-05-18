@@ -26,3 +26,6 @@ allowBuilds:
   "msgpackr-extract": true
   "msw": true
   "unrs-resolver": true
+
+patchedDependencies:
+  "@anthropic-ai/claude-agent-sdk@0.2.141": patches/@anthropic-ai__claude-agent-sdk@0.2.141.patch
