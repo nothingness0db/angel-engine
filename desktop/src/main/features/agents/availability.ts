@@ -1,16 +1,7 @@
 import type { AgentOption, AgentRuntime } from "../../../shared/agents";
 
-import { createRequire } from "node:module";
-
 import { AGENT_OPTIONS } from "../../../shared/agents";
-
-type Which = (
-  command: string,
-  options: { nothrow: true },
-) => Promise<string | null>;
-
-const require = createRequire(import.meta.url);
-const which = require("which") as Which;
+import { nodeWhich } from "../../platform/node-which";
 
 const runtimeCommands: Record<AgentRuntime, () => string> = {
   claude: () =>
@@ -39,5 +30,5 @@ export async function listAvailableAgents(): Promise<AgentOption[]> {
 }
 
 async function commandExists(command: string): Promise<boolean> {
-  return (await which(command, { nothrow: true })) !== null;
+  return (await nodeWhich(command, { nothrow: true })) !== null;
 }
