@@ -32,6 +32,7 @@ import type {
 } from "../../../shared/chat";
 
 import type { ChatRuntime } from "./runtime";
+import fs from "node:fs";
 import path from "node:path";
 
 import {
@@ -315,12 +316,59 @@ async function createChatSession(
     return new ClaudeCodeSession();
   }
 
+  const overrides: Parameters<typeof createRuntimeOptions>[1] = {
+    clientName: "angel-engine",
+    clientTitle: "Angel Engine",
+  };
+  if (process.platform === "win32") {
+    const resolved = resolveWindowsRuntimeCommand(runtime);
+    if (resolved) overrides.command = resolved;
+  }
   return new DesktopAngelSession(
-    createRuntimeOptions(runtime ?? null, {
-      clientName: "angel-engine",
-      clientTitle: "Angel Engine",
-    }),
+    createRuntimeOptions(runtime ?? null, overrides),
   );
+}
+
+function resolveWindowsRuntimeCommand(runtime?: string): string | undefined {
+  const name = runtimeCommandName(runtime);
+  if (!name) return undefined;
+  const pathEnv = process.env.PATH ?? process.env.Path ?? "";
+  const exts = (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+    .split(";")
+    .filter(Boolean);
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    for (const ext of ["", ...exts]) {
+      const candidate = path.join(dir, `${name}${ext}`);
+      try {
+        if (fs.statSync(candidate).isFile()) return candidate;
+      } catch {
+        // not found, continue
+      }
+    }
+  }
+  return undefined;
+}
+
+function runtimeCommandName(runtime?: string): string | undefined {
+  switch ((runtime ?? "").trim().toLowerCase()) {
+    case "kimi":
+      return "kimi";
+    case "opencode":
+      return "opencode";
+    case "qoder":
+      return "qodercli";
+    case "copilot":
+      return "copilot";
+    case "gemini":
+      return "gemini";
+    case "cursor":
+      return "agent";
+    case "cline":
+      return "cline";
+    default:
+      return "codex";
+  }
 }
 
 function chatAttachmentsToClientInput(
