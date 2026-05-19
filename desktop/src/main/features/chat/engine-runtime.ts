@@ -261,7 +261,7 @@ export async function streamChat(
     remoteId: chat.remoteThreadId ?? undefined,
     signal: abortSignal,
     input: chatAttachmentsToClientInput(attachments),
-    text: input.text,
+    text: appendSessionContext(input.text, chat.createdAt),
   });
 
   if (input.text) {
@@ -851,3 +851,16 @@ export type {
   ChatRuntimeConfig as EngineRuntimeConfig,
   TurnRunResult as RunTurnResult,
 };
+
+function appendSessionContext(text: string, chatCreatedAt: string): string {
+  const ms = Date.now() - new Date(chatCreatedAt).getTime();
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+  return `${text}\n\n[Session context — current time: ${new Date().toISOString()}, conversation elapsed: ${parts.join(" ")}]`;
+}
