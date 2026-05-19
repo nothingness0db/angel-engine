@@ -1,4 +1,5 @@
 packages:
+  - "apps/*"
   - "desktop"
   - "packages/*"
   - "crates/angel-engine-client-napi"
@@ -25,6 +26,7 @@ allowBuilds:
   "macos-alias": true
   "msgpackr-extract": true
   "msw": true
+  "sharp": true
   "unrs-resolver": true
 
 patchedDependencies:
