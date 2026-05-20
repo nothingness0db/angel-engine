@@ -856,7 +856,6 @@ export type {
   ChatRuntimeConfig as EngineRuntimeConfig,
   TurnRunResult as RunTurnResult,
 };
-}
 
 function appendSessionContext(
   text: string,
@@ -896,3 +895,29 @@ const SCAN_IGNORE = new Set([
 ]);
 
 function scanProjectFiles(dir: string, depth = 0, prefix = ""): string {
+  if (depth > 4) return "";
+  let result = "";
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return "";
+  }
+  const filtered = entries
+    .filter((e) => !SCAN_IGNORE.has(e.name) && !e.name.startsWith("."))
+    .sort((a, b) => {
+      if (a.isDirectory() !== b.isDirectory()) return a.isDirectory() ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  for (const entry of filtered) {
+    result += `${prefix}${entry.name}${entry.isDirectory() ? "/" : ""}\n`;
+    if (entry.isDirectory()) {
+      result += scanProjectFiles(
+        path.join(dir, entry.name),
+        depth + 1,
+        prefix + "  ",
+      );
+    }
+  }
+  return result;
+}
