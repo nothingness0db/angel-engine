@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest]
     
     steps:
       - name: Checkout
@@ -24,14 +24,16 @@ jobs:
       - name: Cache Rust builds
         uses: Swatinem/rust-cache@v2
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'pnpm'
-
-      - name: Install pnpm
-        run: corepack enable
 
       - name: Install dependencies
         run: pnpm install
@@ -41,8 +43,7 @@ jobs:
 
       - name: Build desktop
         working-directory: desktop
-        run: |
-          pnpm run make
+        run: pnpm run make
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -51,6 +52,4 @@ jobs:
           path: |
             desktop/out/make/**/*.dmg
             desktop/out/make/**/*.exe
-            desktop/out/make/**/*.deb
-            desktop/out/make/**/*.rpm
             desktop/out/make/**/*.zip
